@@ -2,7 +2,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { init: initDB, Counter, user_game_data } = require("./db");
+const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data } = require("./db");
 const { userInfo } = require("os");
 
 const logger = morgan("tiny");
@@ -80,6 +80,7 @@ const port = process.env.PORT || 80;
 
 async function bootstrap() {
   await initDB();
+  await initUserDB();
   app.listen(port, () => {
     console.log("启动成功", port);
   });

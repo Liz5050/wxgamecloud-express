@@ -22,7 +22,6 @@ const Counter = sequelize.define("Counter", {
 
 // 数据库初始化方法
 async function init() {
-  await initUser_game_data();
   await Counter.sync({ alter: true });
 }
 
@@ -61,5 +60,6 @@ async function initUser_game_data() {
 module.exports = {
   init,
   Counter,
+  initUser_game_data,
   user_game_data,
 };

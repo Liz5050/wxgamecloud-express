@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data } = require("./db");
+const { Op } = require("sequelize");
 
 const logger = morgan("tiny");
 
@@ -69,23 +70,27 @@ app.post("/api/user_game_data",async (req,res) =>{
     const item = user_game_data.findAll({
       where:{
         openid:openid,
+        game_type:game_data.game_type,
         score:{
           [Op.lt]:game_data.score
         }
       }
     })
     if(item){
-      const ugameData = await user_game_data.create({
-        openid:openid,
-        game_type:game_data.game_type,
-        score:game_data.score,
-        nick_name:user_info.nickName,
-        avatar_url:user_info.avatarUrl
-      });
-      res.send({code:0,data:ugameData});
+        item.set({
+          score:game_data.score
+        });
+        res.send({code:0,data:item});
     }
     else {
-      res.send({code:0,data:"暂未刷新记录"});
+        const ugameData = await user_game_data.create({
+          openid:openid,
+          game_type:game_data.game_type,
+          score:game_data.score,
+          nick_name:user_info.nickName,
+          avatar_url:user_info.avatarUrl
+        });
+        res.send({code:0,data:ugameData});
     }
   }
 });

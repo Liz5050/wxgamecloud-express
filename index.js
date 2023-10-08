@@ -76,6 +76,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         }
       }
     })
+    console.log("保存用户游戏数据 findAll ",item);
     if(item){
         item.set({
           score:game_data.score

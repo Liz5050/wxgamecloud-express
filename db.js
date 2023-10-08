@@ -29,32 +29,26 @@ async function init() {
 const user_game_data = sequelize.define("user_game_data", {
   openid: {
     type: DataTypes.STRING,
-    allowNull: false,
     defaultValue: "",
   },
   game_type: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
+    type: DataTypes.STRING,
+    defaultValue: "",
   },
   appid: {
     type: DataTypes.STRING,
-    allowNull: false,
     defaultValue: "",
   },
   score: {
     type: DataTypes.INTEGER,
-    allowNull: false,
     defaultValue: 0,
   },
   nick_name: {
     type: DataTypes.STRING,
-    allowNull: false,
     defaultValue: "",
   },
   avatar_url: {
     type: DataTypes.STRING,
-    allowNull: false,
     defaultValue: "",
   },
 });

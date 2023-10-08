@@ -2,7 +2,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { init: initDB, Counter } = require("./db");
+const { init: initDB, Counter, user_game_data } = require("./db");
 
 const logger = morgan("tiny");
 
@@ -55,6 +55,8 @@ app.get("/api/user_game_data",async (req,res) =>{
 
 app.post("/api/user_game_data",async (req,res) =>{
   console.log("保存用户游戏数据",req,res);
+  const game_data = await user_game_data.create();
+  res.send({code:0,data:result});
 });
 
 const port = process.env.PORT || 80;

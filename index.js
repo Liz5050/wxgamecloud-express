@@ -65,6 +65,7 @@ app.get("/api/user_game_data",async (req,res) =>{
 app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
   const openid = req.headers["x-wx-openid"];
+  console.log("保存用户数据时openID:",openid);
   console.log("保存用户游戏数据",game_data,user_info);
   const ugameData = await user_game_data.create({
     openid:openid,

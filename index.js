@@ -50,6 +50,10 @@ app.get("/api/wx_openid", async (req, res) => {
 });
 
 app.get("/api/user_game_data",async (req,res) =>{
+  console.log("获取用户游戏数据",req,res);
+});
+
+app.post("/api/user_game_data",async (req,res) =>{
   console.log("保存用户游戏数据",req,res);
 });
 

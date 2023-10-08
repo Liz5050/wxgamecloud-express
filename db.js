@@ -29,10 +29,12 @@ const user_game_data = sequelize.define("user_game_data", {
   openid: {
     type: DataTypes.STRING,
     defaultValue: "",
+    primaryKey:true,
   },
   game_type: {
     type: DataTypes.STRING,
     defaultValue: "",
+    primaryKey:true,
   },
   appid: {
     type: DataTypes.STRING,
@@ -53,7 +55,7 @@ const user_game_data = sequelize.define("user_game_data", {
 });
 
 async function initUser_game_data() {
-  await user_game_data.sync({ alter: true });
+  await user_game_data.sync();
 }
 
 // 导出初始化方法和模型

@@ -54,11 +54,11 @@ app.get("/api/user_game_data",async (req,res) =>{
   console.log("获取用户游戏数据",req,res);
   const {game_type} = req.body;
   const openid = req.headers["x-wx-openid"];
-  const game_data = await user_game_data.findByPk(openid,game_type);
-  if (game_data === null) {
+  const ugameData = await user_game_data.findByPk(openid,game_type);
+  if (ugameData === null) {
     res.send({code:-1,data:null});
   } else {
-    res.send({code:0,data:game_data});
+    res.send({code:0,data:ugameData});
   }
 });
 
@@ -66,14 +66,14 @@ app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
   const openid = req.headers["x-wx-openid"];
   console.log("保存用户游戏数据",game_data,user_info);
-  const user_game_data = await user_game_data.create({
+  const ugameData = await user_game_data.create({
     openid:openid,
     game_type:game_data.game_type,
     score:game_data.score,
     nick_name:user_info.nickName,
     avatar_url:user_info.avatarUrl
   });
-  res.send({code:0,data:user_game_data});
+  res.send({code:0,data:ugameData});
 });
 
 const port = process.env.PORT || 80;

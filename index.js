@@ -74,13 +74,13 @@ app.post("/api/user_game_data",async (req,res) =>{
         score:{
           [Op.lt]:game_data.score
         }
-      },
-      set:{
-        score:game_data.score
       }
     })
-    if(item){
-        res.send({code:0,data:item});
+    if(item && item.length > 0){
+      item[0].set({
+        score:game_data.score
+      });
+      res.send({code:1,data:item});
     }
     else {
         const ugameData = await user_game_data.create({

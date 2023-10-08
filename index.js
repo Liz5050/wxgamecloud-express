@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data } = require("./db");
-const { userInfo } = require("os");
 
 const logger = morgan("tiny");
 
@@ -64,17 +63,31 @@ app.get("/api/user_game_data",async (req,res) =>{
 
 app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
-  const openid = req.headers["x-wx-openid"];
-  console.log("保存用户数据时openID:",openid);
   console.log("保存用户游戏数据",game_data,user_info);
-  const ugameData = await user_game_data.create({
-    openid:openid,
-    game_type:game_data.game_type,
-    score:game_data.score,
-    nick_name:user_info.nickName,
-    avatar_url:user_info.avatarUrl
-  });
-  res.send({code:0,data:ugameData});
+  if (req.headers["x-wx-source"]) {
+    const openid = req.headers["x-wx-openid"];
+    const item = user_game_data.findAll({
+      where:{
+        openid:openid,
+        score:{
+          [Op.lt]:game_data.score
+        }
+      }
+    })
+    if(item){
+      const ugameData = await user_game_data.create({
+        openid:openid,
+        game_type:game_data.game_type,
+        score:game_data.score,
+        nick_name:user_info.nickName,
+        avatar_url:user_info.avatarUrl
+      });
+      res.send({code:0,data:ugameData});
+    }
+    else {
+      res.send({code:0,data:"暂未刷新记录"});
+    }
+  }
 });
 
 const port = process.env.PORT || 80;

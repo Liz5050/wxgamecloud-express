@@ -67,20 +67,19 @@ app.post("/api/user_game_data",async (req,res) =>{
   console.log("保存用户游戏数据",game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const item = user_game_data.findAll({
+    const item = await user_game_data.findAll({
       where:{
         openid:openid,
         game_type:game_data.game_type,
         score:{
           [Op.lt]:game_data.score
         }
+      },
+      set:{
+        score:game_data.score
       }
     })
-    console.log("保存用户游戏数据 findAll ",item);
     if(item){
-        item.set({
-          score:game_data.score
-        });
         res.send({code:0,data:item});
     }
     else {

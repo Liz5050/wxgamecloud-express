@@ -80,6 +80,7 @@ app.post("/api/user_game_data",async (req,res) =>{
       item[0].set({
         score:game_data.score
       });
+      await item[0].save();
       res.send({code:1,data:item});
     }
     else {

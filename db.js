@@ -28,7 +28,8 @@ async function init() {
 const user_game_data = sequelize.define("user_game_data", {
   openid: {
     type: DataTypes.STRING,
-    defaultValue: "",
+    allowNull: false,
+    defaultValue: "1",
     primaryKey:true,
   },
   game_type: {

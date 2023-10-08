@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const { init: initDB, Counter, user_game_data } = require("./db");
+const { userInfo } = require("os");
 
 const logger = morgan("tiny");
 
@@ -51,12 +52,26 @@ app.get("/api/wx_openid", async (req, res) => {
 
 app.get("/api/user_game_data",async (req,res) =>{
   console.log("获取用户游戏数据",req,res);
+  const {openid,game_type} = req.body;
+  const game_data = await user_game_data.findByPk(openid,game_type);
+  if (game_data === null) {
+    res.send({code:-1,data:null});
+  } else {
+    res.send({code:0,data:game_data});
+  }
 });
 
 app.post("/api/user_game_data",async (req,res) =>{
-  console.log("保存用户游戏数据",req,res);
-  const game_data = await user_game_data.create();
-  res.send({code:0,data:result});
+  const { game_data,user_info } = req.body;
+  console.log("保存用户游戏数据",game_data,user_info);
+  const user_game_data = await user_game_data.create({
+    openid:user_info.openid,
+    game_type:game_data.game_type,
+    score:game_data.score,
+    nick_name:user_info.nickName,
+    avatar_url:user_info.avatarUrl
+  });
+  res.send({code:0,data:user_game_data});
 });
 
 const port = process.env.PORT || 80;

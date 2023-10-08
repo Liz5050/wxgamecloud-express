@@ -47,7 +47,10 @@ app.get("/api/wx_openid", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     res.send(req.headers["x-wx-openid"]);
   }
-  console.log("/api/wx_openid",req,res);
+});
+
+app.get("/api/user_game_data",async (req,res) =>{
+  console.log("保存用户游戏数据",req,res);
 });
 
 const port = process.env.PORT || 80;

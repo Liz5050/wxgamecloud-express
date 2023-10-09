@@ -94,7 +94,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         game_type:game_data.game_type,
         score:game_data.score,
         nick_name:user_info.nickName,
-        avatarUrl:user_info.avatarUrl
+        avatar_url:user_info.avatarUrl
       });
       res.send({code:0,data:ugameData});
     }

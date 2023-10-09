@@ -49,7 +49,11 @@ const user_game_data = sequelize.define("user_game_data", {
   avatar_url: {
     type: DataTypes.STRING,
     defaultValue: "",
-  }
+  },
+  record_time: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
 });
 
 async function initUser_game_data() {

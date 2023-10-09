@@ -79,9 +79,18 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     })
     if(item && item.length > 0){
-      if(item[0].score < game_data.score){
+      let newRecord = false;
+      if(game_data.game_type == 1001){
+        //舒尔特挑战是按时间算，数值小的才算新记录
+        newRecord = item[0].score > game_data.score;
+      }
+      else{
+        newRecord = item[0].score < game_data.score;
+      }
+      if(newRecord){
         item[0].set({
           score:game_data.score,
+          record_time:game_data.record_time
         });
         await item[0].save();
         res.send({code:1,data:item});
@@ -96,7 +105,8 @@ app.post("/api/user_game_data",async (req,res) =>{
         game_type:game_data.game_type,
         score:game_data.score,
         nick_name:user_info.nickName,
-        avatar_url:user_info.avatarUrl
+        avatar_url:user_info.avatarUrl,
+        record_time:game_data.record_time
       });
       res.send({code:0,data:ugameData});
     }

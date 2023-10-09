@@ -72,7 +72,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         openid:openid,
         game_type:game_data.game_type,
         score:{
-          [Op.lt]:game_data.score
+          [Op.lte]:game_data.score
         }
       }
     })
@@ -94,20 +94,18 @@ app.post("/api/user_game_data",async (req,res) =>{
       res.send({code:1,data:item});
     }
     else {
+      let obj = {
+        openid:openid,
+        game_type:game_data.game_type,
+        score:game_data.score,
+      }
       if(user_info){
-        const ugameData = await user_game_data.create({
-          openid:openid,
-          game_type:game_data.game_type,
-          score:game_data.score,
-          nick_name:user_info.nickName,
-          avatar_url:user_info.avatarUrl,
-          is_auth:1
-        });
-        res.send({code:0,data:ugameData});
+        obj.nick_name = user_info.nickName,
+        obj.avatar_url = user_info.avatarUrl,
+        obj.is_auth = 1
       }
-      else{
-        res.send({code:0,data:"积分为0，无需保存"});
-      }
+      const ugameData = await user_game_data.create({obj});
+      res.send({code:0,data:ugameData});
     }
   }
 });

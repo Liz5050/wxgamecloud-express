@@ -49,10 +49,6 @@ const user_game_data = sequelize.define("user_game_data", {
   avatar_url: {
     type: DataTypes.STRING,
     defaultValue: "",
-  },
-  is_auth: {
-    type: DataTypes.TINYINT,
-    defaultValue: 0,
   }
 });
 

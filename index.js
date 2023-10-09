@@ -54,7 +54,12 @@ app.get("/api/user_game_data",async (req,res) =>{
   console.log("获取用户游戏数据",req,res);
   const {game_type} = req.body;
   const openid = req.headers["x-wx-openid"];
-  const ugameData = await user_game_data.findByPk(openid,game_type);
+  const ugameData = await user_game_data.findAll({
+    where:{
+      openid:openid,
+      game_type:game_type,
+    }
+  });
   if (ugameData === null) {
     res.send({code:0,data:null});
   } else {

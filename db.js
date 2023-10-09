@@ -31,8 +31,8 @@ const user_game_data = sequelize.define("user_game_data", {
     defaultValue: "",
   },
   game_type: {
-    type: DataTypes.STRING,
-    defaultValue: "",
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
   },
   appid: {
     type: DataTypes.STRING,

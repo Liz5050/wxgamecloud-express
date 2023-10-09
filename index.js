@@ -50,36 +50,39 @@ app.get("/api/wx_openid", async (req, res) => {
   }
 });
 
-app.get("/api/all_user_game_data",async (req,res) =>{
-  console.log("获取所有玩家的游戏数据",req,res);
-  const {game_type} = req.body;
-  const openid = req.headers["x-wx-openid"];
-  const item = await user_game_data.findAll({
-    where:{
-      game_type:game_type,
+app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
+  const game_type = req.params.game_type;
+  console.log("获取所有玩家的游戏数据game_type = ",game_type);
+  if(game_type){
+    const item = await user_game_data.findAll({
+      where:{
+        game_type:game_type,
+      }
+    });
+    if (item && item.length > 0) {
+      res.send({code:0,data:item});
+    } else {
+      res.send({code:0,data:"查询失败"});
     }
-  });
-  if (item && item.length > 0) {
-    res.send({code:0,data:item});
-  } else {
-    res.send({code:0,data:"查询失败"});
   }
 });
 
-app.get("/api/user_game_data",async (req,res) =>{
-  console.log("获取玩家自己的游戏数据",req,res);
-  const {game_type} = req.body;
-  const openid = req.headers["x-wx-openid"];
-  const item = await user_game_data.findAll({
-    where:{
-      openid:openid,
-      game_type:game_type,
+app.get("/api/user_game_data/:game_type?",async (req,res) =>{
+  const game_type = req.params.game_type;
+  console.log("获取玩家自己的游戏数据game_type = ",game_type);
+  if(game_type){
+    const openid = req.headers["x-wx-openid"];
+    const item = await user_game_data.findAll({
+      where:{
+        openid:openid,
+        game_type:game_type,
+      }
+    });
+    if (item && item.length > 0) {
+      res.send({code:0,data:item});
+    } else {
+      res.send({code:0,data:"查询失败"});
     }
-  });
-  if (item && item.length > 0) {
-    res.send({code:0,data:item});
-  } else {
-    res.send({code:0,data:"查询失败"});
   }
 });
 

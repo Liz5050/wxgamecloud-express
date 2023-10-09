@@ -39,7 +39,7 @@ const user_game_data = sequelize.define("user_game_data", {
     defaultValue: "",
   },
   score: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.FLOAT,
     defaultValue: 0,
   },
   nick_name: {

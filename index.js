@@ -75,18 +75,20 @@ app.post("/api/user_game_data",async (req,res) =>{
     const item = await user_game_data.findAll({
       where:{
         openid:openid,
-        game_type:game_data.game_type,
-        score:{
-          [Op.lte]:game_data.score
-        }
+        game_type:game_data.game_type
       }
     })
     if(item && item.length > 0){
-      item[0].set({
-        score:game_data.score,
-      });
-      await item[0].save();
-      res.send({code:1,data:item});
+      if(item[0].score < game_data.score){
+        item[0].set({
+          score:game_data.score,
+        });
+        await item[0].save();
+        res.send({code:1,data:item});
+      }
+      else{
+        res.send({code:1,data:"未刷新记录"});
+      }
     }
     else {
       const ugameData = await user_game_data.create({

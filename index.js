@@ -77,34 +77,20 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     })
     if(item && item.length > 0){
-      if(user_info && item[0].is_auth == 0){
-        item[0].set({
-          score:game_data.score,
-          nick_name:user_info.nickName,
-          avatar_url:user_info.avatarUrl,
-          is_auth:1
-        });
-      }
-      else {
-        item[0].set({
-          score:game_data.score,
-        });
-      }
+      item[0].set({
+        score:game_data.score,
+      });
       await item[0].save();
       res.send({code:1,data:item});
     }
     else {
-      let obj = {
+      const ugameData = await user_game_data.create({
         openid:openid,
         game_type:game_data.game_type,
         score:game_data.score,
-      }
-      if(user_info){
-        obj.nick_name = user_info.nickName,
-        obj.avatar_url = user_info.avatarUrl,
-        obj.is_auth = 1
-      }
-      const ugameData = await user_game_data.create({obj});
+        nick_name:user_info.nickName,
+        avatarUrl:user_info.avatarUrl
+      });
       res.send({code:0,data:ugameData});
     }
   }

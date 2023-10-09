@@ -50,6 +50,10 @@ const user_game_data = sequelize.define("user_game_data", {
     type: DataTypes.STRING,
     defaultValue: "",
   },
+  is_auth: {
+    type: DataTypes.TINYINT,
+    defaultValue: 0,
+  }
 });
 
 async function initUser_game_data() {

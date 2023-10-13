@@ -34,11 +34,19 @@ const user_game_data = sequelize.define("user_game_data", {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
+  sub_type: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
   appid: {
     type: DataTypes.STRING,
     defaultValue: "",
   },
   score: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0,
+  },
+  play_time: {
     type: DataTypes.FLOAT,
     defaultValue: 0,
   },

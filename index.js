@@ -91,10 +91,15 @@ app.post("/api/user_game_data",async (req,res) =>{
   console.log("保存用户游戏数据",game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
+    let subType = game_data.sub_type;
+    if(!subType){
+      subType = 0;
+    }
     const item = await user_game_data.findAll({
       where:{
         openid:openid,
-        game_type:game_data.game_type
+        game_type:game_data.game_type,
+        sub_type:subType
       }
     })
     if(item && item.length > 0){
@@ -106,6 +111,9 @@ app.post("/api/user_game_data",async (req,res) =>{
       else{
         newRecord = item[0].score < game_data.score;
       }
+      let playTime = item[0].play_time;
+      playTime += game_data.add_play_time;
+      item[0].play_time = playTime;
       if(newRecord){
         item[0].set({
           score:game_data.score,
@@ -122,7 +130,9 @@ app.post("/api/user_game_data",async (req,res) =>{
       const ugameData = await user_game_data.create({
         openid:openid,
         game_type:game_data.game_type,
+        sub_type:game_data.sub_type,
         score:game_data.score,
+        play_time:game_data.add_play_time,
         nick_name:user_info.nickName,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time

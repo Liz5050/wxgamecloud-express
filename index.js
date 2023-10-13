@@ -137,7 +137,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         nick_name:user_info.nickName,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time
-      });
+      })
       res.send({code:0,data:ugameData});
     }
   }

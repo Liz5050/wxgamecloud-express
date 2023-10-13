@@ -92,9 +92,6 @@ app.post("/api/user_game_data",async (req,res) =>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     let subType = game_data.sub_type;
-    if(!subType){
-      subType = 0;
-    }
     const item = await user_game_data.findAll({
       where:{
         openid:openid,

@@ -131,7 +131,7 @@ app.post("/api/user_game_data",async (req,res) =>{
       const ugameData = await user_game_data.create({
         openid:openid,
         game_type:game_data.game_type,
-        sub_type:game_data.sub_type,
+        sub_type:subType,
         score:game_data.score,
         play_time:game_data.add_play_time,
         nick_name:user_info.nickName,

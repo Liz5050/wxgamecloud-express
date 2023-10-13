@@ -120,6 +120,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         res.send({code:1,data:item});
       }
       else{
+        await item[0].save();
         res.send({code:1,data:"未刷新记录"});
       }
     }

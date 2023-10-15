@@ -53,15 +53,15 @@ app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
   const game_type = req.params.game_type;
   console.log("获取所有玩家的游戏数据game_type = ",game_type);
   if(game_type){
-    let orderStr = 'score DESC';
+    let orderStr = 'DESC';
     if(game_type == 1001){
-      orderStr = 'score ASC';
+      orderStr = 'ASC';
     }
     const item = await user_game_data.findAll({
       where:{
         game_type:game_type,
       },
-      order:sequelize.col(orderStr),
+      order:[sequelize.fn('max', sequelize.col('score')), orderStr],
       limit:100
     });
     if (item && item.length > 0) {

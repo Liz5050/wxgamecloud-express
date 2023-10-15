@@ -49,18 +49,19 @@ app.get("/api/wx_openid", async (req, res) => {
   }
 });
 
-app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
+app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   const game_type = req.params.game_type;
-  console.log("获取所有玩家的游戏数据game_type = ",game_type);
+  const sub_type = req.params.sub_type;
+  console.log("获取所有玩家的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
   if(game_type){
     let orderStr = 'DESC';
     if(game_type == 1001){
       orderStr = 'ASC';
     }
     const item = await user_game_data.findAll({
-      attributes: ['game_type', 'score'],
       where:{
         game_type:game_type,
+        sub_type:sub_type
       },
       order:['score', orderStr],
       limit:100
@@ -75,13 +76,13 @@ app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
   }
 });
 
-app.get("/api/user_game_data/:game_type?",async (req,res) =>{
+app.get("/api/user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   const game_type = req.params.game_type;
-  console.log("获取玩家自己的游戏数据game_type = ",game_type);
+  const sub_type = req.params.sub_type;
+  console.log("获取玩家自己的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
   if(game_type){
     const openid = req.headers["x-wx-openid"];
     const item = await user_game_data.findAll({
-      attributes: ['game_type', 'openid'],
       where:{
         openid:openid,
         game_type:game_type,

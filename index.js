@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data } = require("./db");
-const { Op } = require("sequelize");
+const { literal } = require("sequelize");
 
 const logger = morgan("tiny");
 
@@ -62,7 +62,7 @@ app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
       where:{
         game_type:game_type,
       },
-      order:sequelize.literal(orderStr),
+      order:literal(orderStr),
       limit:100
     });
     if (item && item.length > 0) {

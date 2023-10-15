@@ -59,7 +59,6 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
       orderStr = 'ASC';
     }
     const item = await user_game_data.findAll({
-      attributes: ['game_type','sub_type','score'],
       where:{
         game_type:game_type,
         sub_type:sub_type

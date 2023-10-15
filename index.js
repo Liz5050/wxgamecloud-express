@@ -57,7 +57,8 @@ app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
     const item = await user_game_data.findAll({
       where:{
         game_type:game_type,
-      }
+      },
+      limit:100
     });
     if (item && item.length > 0) {
       res.send({code:0,data:item});
@@ -76,7 +77,8 @@ app.get("/api/user_game_data/:game_type?",async (req,res) =>{
       where:{
         openid:openid,
         game_type:game_type,
-      }
+      },
+      limit:100
     });
     if (item && item.length > 0) {
       res.send({code:0,data:item});

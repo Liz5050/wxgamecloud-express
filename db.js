@@ -74,4 +74,5 @@ module.exports = {
   Counter,
   initUser_game_data,
   user_game_data,
+  sequelize
 };

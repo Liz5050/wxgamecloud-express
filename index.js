@@ -58,10 +58,11 @@ app.get("/api/all_user_game_data/:game_type?",async (req,res) =>{
       orderStr = 'ASC';
     }
     const item = await user_game_data.findAll({
+      attributes: ['game_type', 'score'],
       where:{
         game_type:game_type,
       },
-      order:[[sequelize.col('score'), orderStr]],
+      order:['score', orderStr],
       limit:100
     }).catch(()=>{
       console.error("error")
@@ -80,6 +81,7 @@ app.get("/api/user_game_data/:game_type?",async (req,res) =>{
   if(game_type){
     const openid = req.headers["x-wx-openid"];
     const item = await user_game_data.findAll({
+      attributes: ['game_type', 'openid'],
       where:{
         openid:openid,
         game_type:game_type,

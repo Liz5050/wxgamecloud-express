@@ -277,7 +277,7 @@ app.post("/api/use_grid_skin",async(req,res)=>{
         if(item && item.length > 0){
           item[0].skin_id = skin_id
           await item[0].save();
-          res.send({code:0,data:{skin_id:skinId}});
+          res.send({code:0,data:{skin_id:skin_id}});
         }
     }
     else {

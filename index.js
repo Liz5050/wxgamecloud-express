@@ -254,7 +254,7 @@ app.post("/api/buy_skin",async(req,res)=>{
             let newScore = item.score - shopCfg.price;
             item.score = newScore;
             await item.save();
-            res.send({code:0,data:{skin_id:skinId}});
+            res.send({code:0,data:{skin_id:skinId,score:newScore}});
           }
           else {
             res.send({code:-1,data:"积分不足"});
@@ -277,7 +277,7 @@ app.post("/api/use_grid_skin",async(req,res)=>{
         if(item && item.length > 0){
           item[0].skin_id = skin_id
           await item[0].save();
-          res.send({code:0,data:skin_id});
+          res.send({code:0,data:{skin_id:skinId}});
         }
     }
     else {

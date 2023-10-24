@@ -111,7 +111,8 @@ async function addUserScore(openid,score){
     let curScore = user_data_item[0].score;
     curScore += score;
     user_data_item[0].score = curScore;
-    user_data_item[0].save();
+    await user_data_item[0].save();
+    return curScore;
     // console.log("保存当前积分：",curScore)
   }
   else{
@@ -214,8 +215,8 @@ app.post("/api/add_score_coin",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     const { score } = req.body;
-    await addUserScore(openid,score);
-    res.send({code:0,data:{score:score}});
+    const newScore = await addUserScore(openid,score);
+    res.send({code:0,data:{score:newScore}});
   }
 });
 

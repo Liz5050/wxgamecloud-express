@@ -2,6 +2,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const game_config = require("./config/game_config");
 const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data,initUser_data,user_data,sequelize} = require("./db");
 
 const logger = morgan("tiny");
@@ -97,6 +98,35 @@ app.get("/api/user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   }
 });
 
+//保存玩家游戏积分（货币）
+async function addUserScore(openid,score){
+  const user_data_item = await user_data.findAll({
+    where:{
+      openid:openid,
+    }
+  }).catch(()=>{
+    console.error("user_data error---------");
+  });
+  if(user_data_item && user_data_item.length > 0){
+    let curScore = user_data_item[0].score;
+    curScore += score;
+    user_data_item[0].score = curScore;
+    user_data_item[0].save();
+    console.log("保存当前积分：",curScore)
+  }
+  else{
+    await user_data.create({
+      openid:openid,
+      nick_name:user_info.nickName,
+      avatar_url:user_info.avatarUrl,
+      score:score,
+      skin_id:0,
+      skin_list:[]
+    });
+    console.log("创建角色数据",game_data.score);
+  }
+}
+
 app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
   console.log("保存用户游戏数据",game_data,user_info);
@@ -115,30 +145,7 @@ app.post("/api/user_game_data",async (req,res) =>{
     });
 
     if(game_data.game_type == 1002){
-      const user_data_item = await user_data.findAll({
-        where:{
-          openid:openid,
-        }
-      }).catch(()=>{
-        console.error("user_data error---------");
-      });
-      if(user_data_item && user_data_item.length > 0){
-        let curScore = user_data_item[0].score;
-        curScore += game_data.score;
-        user_data_item[0].score = curScore;
-        user_data_item[0].save();
-        console.log("保存当前积分：",curScore)
-      }
-      else{
-        await user_data.create({
-          openid:openid,
-          nick_name:user_info.nickName,
-          avatar_url:user_info.avatarUrl,
-          score:game_data.score,
-          skin_id:0,
-        });
-        console.log("创建角色数据",game_data.score);
-      }
+      await addUserScore(openid,score);
     }
 
     if(item && item.length > 0){
@@ -191,15 +198,70 @@ app.get("api/user_data",async(req,res)=>{
           }
         });
         if(item && item.length > 0){
-          req.send({code:0,data:item[0]});
+          res.send({code:0,data:item[0]});
         }
         else{
-          req.send({code:-1,data:"暂无数据"});
+          res.send({code:-1,data:"暂无数据"});
         }
     }
     else {
-      req.send({code:0,data:"未登录授权"});
+      res.send({code:0,data:"未登录授权"});
     }
+});
+
+app.post("api/add_score_coin",async(req,res)=>{
+  if (req.headers["x-wx-source"]) {
+    const openid = req.headers["x-wx-openid"];
+    const { score } = req.body;
+    await addUserScore(openid,score);
+    res.send({code:0,data:{score:score}});
+  }
+});
+
+//兑换皮肤
+app.post("api/buy_skin",async(req,res)=>{
+  if (req.headers["x-wx-source"]) {
+    const openid = req.headers["x-wx-openid"];
+    const { skinId } = req.body;
+    const user_data_item = await user_data.findAll({
+      where:{
+        openid:openid,
+      }
+    }).catch(()=>{
+      console.error("user_data error---------");
+    });
+
+    if(user_data_item && user_data_item.length > 0){
+      let item = user_data_item[0]
+      let skinList = item.skin_list;
+      if(!skinList){
+        console.log("not found skinList:",openid);
+        return;
+      }
+      if(skinList.indexOf(skinId) != -1){
+        res.send({code:-1,data:"已拥有skin_id:" + skinId})
+      }
+      else{
+        let shopCfg = game_config.shop.getByPk(skinId);
+        if(!shopCfg){
+          console.log("shop配置错误:",skinId,game_config.shop);
+        }
+        else {
+          if(item.score >= shopCfg.price){
+            skinList.push(skinId);
+            item.skin_list = skinList;
+            let newScore = item.score - shopCfg.price;
+            item.score = newScore;
+            await item.save();
+            res.send({code:0,data:{skin_id:skinId}});
+          }
+          else {
+            res.send({code:-1,data:"积分不足"});
+          }
+        }
+      }
+    }
+  }
 });
 
 app.post("api/use_grid_skin",async(req,res)=>{
@@ -214,11 +276,11 @@ app.post("api/use_grid_skin",async(req,res)=>{
         if(item && item.length > 0){
           item[0].skin_id = skin_id
           await item[0].save();
-          req.send({code:0,data:skin_id});
+          res.send({code:0,data:skin_id});
         }
     }
     else {
-      req.send({code:0,data:"未登录授权"});
+      res.send({code:0,data:"未登录授权"});
     }
 })
 

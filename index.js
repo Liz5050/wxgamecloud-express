@@ -238,7 +238,8 @@ app.post("/api/buy_skin",async(req,res)=>{
       let skinList = item.skin_list;
       if(!skinList){
         console.log("not found skinList:",openid);
-        return;
+        skinList = [];
+        // return;
       }
       if(skinList.indexOf(skinId) != -1){
         res.send({code:-1,data:"已拥有skin_id:" + skinId})

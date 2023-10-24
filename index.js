@@ -133,6 +133,7 @@ app.post("/api/user_game_data",async (req,res) =>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     let subType = game_data.sub_type;
+    let score = game_data.score;
     if(!subType){
       subType = 0;
     }
@@ -145,24 +146,24 @@ app.post("/api/user_game_data",async (req,res) =>{
     });
 
     if(game_data.game_type == 1002){
-      await addUserScore(openid,score);
+      await addUserScore(openid,game_data.score);
     }
 
     if(item && item.length > 0){
       let newRecord = false;
       if(game_data.game_type == 1001){
         //舒尔特挑战是按时间算，数值小的才算新记录
-        newRecord = item[0].score > game_data.score;
+        newRecord = item[0].score > score;
       }
       else{
-        newRecord = item[0].score < game_data.score;
+        newRecord = item[0].score < score;
       }
       let playTime = item[0].play_time;
       playTime += game_data.add_play_time;
       item[0].play_time = playTime;
       if(newRecord){
         item[0].set({
-          score:game_data.score,
+          score:score,
           record_time:game_data.record_time
         });
         await item[0].save();
@@ -178,7 +179,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         openid:openid,
         game_type:game_data.game_type,
         sub_type:subType,
-        score:game_data.score,
+        score:score,
         play_time:game_data.add_play_time,
         nick_name:user_info.nickName,
         avatar_url:user_info.avatarUrl,

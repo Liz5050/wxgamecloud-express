@@ -7,14 +7,14 @@ class BaseConfig {
     constructor(name,pk){
         this.tableName = name;
         this.pk = pk;
-        // this.sourceData = require("./" + name + ".json");
+        this.sourceData = require("./" + name + ".json");
     }
 
     getDict(){
 		if (this.dataDict == null) {
 			this.configLength = this.sourceData ? this.sourceData.length : 0;
 			this.dataDict = this.parseByPk(this.sourceData, this.pk);
-            this.sourceData = require("./" + this.tableName + ".json");;
+            this.sourceData = null;//require("./" + this.tableName + ".json");;
 		}
 		return this.dataDict;
 	}

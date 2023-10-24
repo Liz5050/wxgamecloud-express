@@ -14,7 +14,7 @@ class BaseConfig {
 		if (this.dataDict == null) {
 			this.configLength = this.sourceData ? this.sourceData.length : 0;
 			this.dataDict = this.parseByPk(this.sourceData, this.pk);
-            this.sourceData = require("./" + name + ".json");;
+            this.sourceData = require("./" + this.tableName + ".json");;
 		}
 		return this.dataDict;
 	}

@@ -112,7 +112,7 @@ async function addUserScore(openid,score){
     curScore += score;
     user_data_item[0].score = curScore;
     user_data_item[0].save();
-    console.log("保存当前积分：",curScore)
+    // console.log("保存当前积分：",curScore)
   }
   else{
     await user_data.create({
@@ -123,7 +123,7 @@ async function addUserScore(openid,score){
       skin_id:0,
       skin_list:[]
     });
-    console.log("创建角色数据",game_data.score);
+    // console.log("创建角色数据",game_data.score);
   }
 }
 
@@ -190,7 +190,7 @@ app.post("/api/user_game_data",async (req,res) =>{
   }
 });
 
-app.get("api/user_data",async(req,res)=>{
+app.get("/api/user_data",async(req,res)=>{
     if (req.headers["x-wx-source"]) {
         const openid = req.headers["x-wx-openid"];
         const item = await user_data.findAll({
@@ -210,7 +210,7 @@ app.get("api/user_data",async(req,res)=>{
     }
 });
 
-app.post("api/add_score_coin",async(req,res)=>{
+app.post("/api/add_score_coin",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     const { score } = req.body;
@@ -220,7 +220,7 @@ app.post("api/add_score_coin",async(req,res)=>{
 });
 
 //兑换皮肤
-app.post("api/buy_skin",async(req,res)=>{
+app.post("/api/buy_skin",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     const { skinId } = req.body;
@@ -265,7 +265,7 @@ app.post("api/buy_skin",async(req,res)=>{
   }
 });
 
-app.post("api/use_grid_skin",async(req,res)=>{
+app.post("/api/use_grid_skin",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
         const { skin_id } = req.body;
         const openid = req.headers["x-wx-openid"];

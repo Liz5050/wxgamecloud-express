@@ -119,7 +119,9 @@ app.post("/api/user_game_data",async (req,res) =>{
         where:{
           openid:openid,
         }
-      });
+      }).catch((err)=>{
+        console.error("user_data error---------",err);
+      });;
       if(user_data_item && user_data_item.length > 0){
         let curScore = user_data_item[0].score;
         curScore += game_data.score;

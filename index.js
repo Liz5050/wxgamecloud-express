@@ -229,7 +229,7 @@ app.post("/api/buy_skin",async(req,res)=>{
         openid:openid,
       }
     }).catch(()=>{
-      console.error("user_data error---------");
+      console.error("user_data error--------");
     });
 
     if(user_data_item && user_data_item.length > 0){

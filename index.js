@@ -119,20 +119,18 @@ app.post("/api/user_game_data",async (req,res) =>{
         where:{
           openid:openid,
         }
-      }).catch((err)=>{
-        console.error("user_data error---------",err);
-      });;
+      }).catch(()=>{
+        console.error("user_data error---------");
+      });
       if(user_data_item && user_data_item.length > 0){
         let curScore = user_data_item[0].score;
         curScore += game_data.score;
-        user_data_item[0].set({
-          score:curScore
-        });
+        user_data_item[0].score = curScore;
         user_data_item[0].save();
         console.log("保存当前积分：",curScore)
       }
       else{
-        user_data.create({
+        await user_data.create({
           openid:openid,
           nick_name:user_info.nickName,
           avatar_url:user_info.avatarUrl,

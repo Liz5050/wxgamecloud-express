@@ -2,7 +2,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data,sequelize } = require("./db");
+const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data,initUser_data,user_data,sequelize} = require("./db");
 
 const logger = morgan("tiny");
 
@@ -112,7 +112,33 @@ app.post("/api/user_game_data",async (req,res) =>{
         game_type:game_data.game_type,
         sub_type:subType
       }
-    })
+    });
+
+    if(game_data.game_type == 1002){
+      const user_data_item = await user_data.findAll({
+        where:{
+          openid:openid,
+        }
+      });
+      if(user_data_item && user_data_item.length > 0){
+        let curScore = user_data_item[0].score;
+        curScore += game_data.score;
+        user_data_item[0].set({
+          score:curScore
+        });
+        user_data_item[0].save();
+      }
+      else{
+        user_data.create({
+          openid:openid,
+          nick_name:user_info.nickName,
+          avatar_url:user_info.avatarUrl,
+          score:game_data.score,
+          skin_id:0,
+        });
+      }
+    }
+
     if(item && item.length > 0){
       let newRecord = false;
       if(game_data.game_type == 1001){
@@ -148,17 +174,58 @@ app.post("/api/user_game_data",async (req,res) =>{
         nick_name:user_info.nickName,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time
-      })
+      });
       res.send({code:0,data:ugameData});
     }
   }
 });
+
+app.get("api/user_data",async(req,res)=>{
+    if (req.headers["x-wx-source"]) {
+        const openid = req.headers["x-wx-openid"];
+        const item = await user_data.findAll({
+          where:{
+            openid:openid,
+          }
+        });
+        if(item && item.length > 0){
+          req.send({code:0,data:item[0]});
+        }
+        else{
+          req.send({code:-1,data:"暂无数据"});
+        }
+    }
+    else {
+      req.send({code:0,data:"未登录授权"});
+    }
+});
+
+app.post("api/use_grid_skin",async(req,res)=>{
+  if (req.headers["x-wx-source"]) {
+        const { skin_id } = req.body;
+        const openid = req.headers["x-wx-openid"];
+        const item = await user_data.findAll({
+          where:{
+            openid:openid,
+          }
+        });
+        if(item && item.length > 0){
+          item[0].skin_id = skin_id
+          await item[0].save();
+          req.send({code:0,data:skin_id});
+        }
+    }
+    else {
+      req.send({code:0,data:"未登录授权"});
+    }
+})
 
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
   await initDB();
   await initUserDB();
+  await initUser_data();
   app.listen(port, () => {
     console.log("启动成功", port);
   });

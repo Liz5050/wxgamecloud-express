@@ -68,11 +68,23 @@ async function initUser_game_data() {
   await user_game_data.sync();
 }
 
+const user_data = sequelize.define("user_data", {
+},{
+  tableName:"user_data"
+});
+
+async function initUser_data() {
+  await user_data.sync();
+}
+
+
 // 导出初始化方法和模型
 module.exports = {
   init,
   Counter,
   initUser_game_data,
   user_game_data,
+  initUser_data,
+  user_data,
   sequelize
 };

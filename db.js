@@ -89,8 +89,6 @@ const user_data = sequelize.define("user_data", {
     type: DataTypes.INTEGER,
     defaultValue: 0,
   },
-},{
-  tableName:"user_data"
 });
 
 async function initUser_data() {

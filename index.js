@@ -224,7 +224,7 @@ app.post("/api/add_score_coin",async(req,res)=>{
 app.post("/api/buy_skin",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const { skinId } = req.body;
+    const { skin_id } = req.body;
     const user_data_item = await user_data.findAll({
       where:{
         openid:openid,
@@ -241,22 +241,22 @@ app.post("/api/buy_skin",async(req,res)=>{
         skinList = [];
         // return;
       }
-      if(skinList.indexOf(skinId) != -1){
-        res.send({code:-1,data:"已拥有skin_id:" + skinId})
+      if(skinList.indexOf(skin_id) != -1){
+        res.send({code:-1,data:"已拥有skin_id:" + skin_id})
       }
       else{
-        let shopCfg = game_config.shop.getByPk(skinId);
+        let shopCfg = game_config.shop.getByPk(skin_id);
         if(!shopCfg){
-          console.log("shop配置错误:",skinId,game_config.shop);
+          console.log("shop配置错误:",skin_id,game_config.shop);
         }
         else {
           if(item.score >= shopCfg.price){
-            skinList.push(skinId);
+            skinList.push(skin_id);
             item.skin_list = skinList;
             let newScore = item.score - shopCfg.price;
             item.score = newScore;
             await item.save();
-            res.send({code:0,data:{skin_id:skinId,score:newScore}});
+            res.send({code:0,data:{skin_id:skin_id,score:newScore}});
           }
           else {
             res.send({code:-1,data:"积分不足"});

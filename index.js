@@ -127,6 +127,7 @@ app.post("/api/user_game_data",async (req,res) =>{
           score:curScore
         });
         user_data_item[0].save();
+        console.log("保存当前积分：",curScore)
       }
       else{
         user_data.create({
@@ -136,6 +137,7 @@ app.post("/api/user_game_data",async (req,res) =>{
           score:game_data.score,
           skin_id:0,
         });
+        console.log("创建角色数据",game_data.score);
       }
     }
 

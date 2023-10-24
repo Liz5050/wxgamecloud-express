@@ -69,6 +69,26 @@ async function initUser_game_data() {
 }
 
 const user_data = sequelize.define("user_data", {
+  openid: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  nick_name: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  avatar_url: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  score: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  skin_id: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
 },{
   tableName:"user_data"
 });

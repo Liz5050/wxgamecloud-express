@@ -111,6 +111,10 @@ async function addUserScore(openid,score,user_info = null){
     let curScore = user_data_item[0].score;
     curScore += score;
     user_data_item[0].score = curScore;
+    if(user_info){
+      user_data_item[0].nick_name = user_info.nickName;
+      user_data_item[0].avatar_url = user_info.avatarUrl;
+    }
     await user_data_item[0].save();
     return curScore;
     // console.log("保存当前积分：",curScore)

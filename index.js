@@ -239,14 +239,13 @@ app.post("/api/buy_skin",async(req,res)=>{
 
     if(user_data_item && user_data_item.length > 0){
       let item = user_data_item[0]
-      let skinList = item.skin_list;
-      if(!skinList){
-        console.log("not found skinList:",openid);
-        skinList = [];
-        // return;
+      let skinListStr = item.skin_list;
+      if(!skinListStr){
+        skinListStr = "";
       }
-      if(skinList.indexOf(skin_id) != -1){
-        res.send({code:-1,data:"已拥有skin_id:" + skin_id})
+      let skinList = skinListStr.split(",");
+      if(skinList.indexOf(String(skin_id)) != -1){
+        res.send({code:-1,data:"已拥有skin_id:" + skin_id});
       }
       else{
         let shopCfg = game_config.shop.getByPk(skin_id);
@@ -255,8 +254,13 @@ app.post("/api/buy_skin",async(req,res)=>{
         }
         else {
           if(item.score >= shopCfg.price){
-            skinList.push(skin_id);
-            item.skin_list = skinList;
+            if(skinList.length == 0){
+              skinListStr += "" + skin_id;
+            }
+            else{
+              skinListStr += "," + skin_id;
+            }
+            item.skin_list = skinListStr;
             let newScore = item.score - shopCfg.price;
             item.score = newScore;
             await item.save();

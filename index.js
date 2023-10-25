@@ -172,11 +172,11 @@ app.post("/api/user_game_data",async (req,res) =>{
           record_time:game_data.record_time
         });
         await item[0].save();
-        res.send({code:1,data:item});
+        res.send({code:0,data:item});
       }
       else{
         await item[0].save();
-        res.send({code:1,data:"未刷新记录"});
+        res.send({code:0,data:"未刷新记录"});
       }
     }
     else {

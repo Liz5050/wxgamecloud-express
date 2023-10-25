@@ -118,8 +118,8 @@ async function addUserScore(openid,score){
   else{
     await user_data.create({
       openid:openid,
-      nick_name:user_info.nickName,
-      avatar_url:user_info.avatarUrl,
+      // nick_name:user_info.nickName,
+      // avatar_url:user_info.avatarUrl,
       score:score,
       skin_id:0,
       skin_list:[]

@@ -176,7 +176,7 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
       else{
         await item[0].save();
-        res.send({code:-1,data:"未刷新记录"});
+        res.send({code:0,data:"未刷新记录"});
       }
     }
     else {
@@ -246,7 +246,7 @@ app.post("/api/buy_skin",async(req,res)=>{
       let skinList = skinListStr.split(",");
       console.log("当前皮肤列表",skinList,skinList.length)
       if(skinList.indexOf(String(skin_id)) != -1){
-        res.send({code:-1,data:"已拥有skin_id:" + skin_id});
+        res.send({code:0,data:"已拥有skin_id:" + skin_id});
       }
       else{
         let shopCfg = game_config.shop.getByPk(skin_id);
@@ -268,7 +268,7 @@ app.post("/api/buy_skin",async(req,res)=>{
             res.send({code:0,data:{skin_id:skin_id,score:newScore}});
           }
           else {
-            res.send({code:-1,data:"积分不足"});
+            res.send({code:0,data:"积分不足"});
           }
         }
       }

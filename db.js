@@ -90,8 +90,8 @@ const user_data = sequelize.define("user_data", {
     defaultValue: 0,
   },
   skin_list: {
-    type: DataTypes.ARRAY(DataTypes.INTEGER),
-    defaultValue:[]
+    type: DataTypes.STRING,
+    defaultValue:""
   }
 });
 

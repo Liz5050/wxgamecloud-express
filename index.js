@@ -99,7 +99,7 @@ app.get("/api/user_game_data/:game_type?/:sub_type?",async (req,res) =>{
 });
 
 //保存玩家游戏积分（货币）
-async function addUserScore(openid,score){
+async function addUserScore(openid,score,user_info = null){
   const user_data_item = await user_data.findAll({
     where:{
       openid:openid,
@@ -118,8 +118,8 @@ async function addUserScore(openid,score){
   else{
     await user_data.create({
       openid:openid,
-      // nick_name:user_info.nickName,
-      // avatar_url:user_info.avatarUrl,
+      nick_name:user_info ? user_info.nickName : "",
+      avatar_url:user_info ? user_info.avatarUrl : "",
       score:score,
       skin_id:0,
       skin_list:[]
@@ -147,7 +147,7 @@ app.post("/api/user_game_data",async (req,res) =>{
     });
 
     if(game_data.game_type == 1002){
-      await addUserScore(openid,game_data.score);
+      await addUserScore(openid,game_data.score,user_info);
     }
 
     if(item && item.length > 0){

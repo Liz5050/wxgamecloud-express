@@ -126,7 +126,7 @@ async function addUserScore(openid,score,user_info = null){
       avatar_url:user_info ? user_info.avatarUrl : "",
       score:score,
       skin_id:0,
-      skin_list:[]
+      skin_list:""
     });
     // console.log("创建角色数据",game_data.score);
   }

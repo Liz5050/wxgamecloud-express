@@ -13,7 +13,7 @@ const sequelize = new Sequelize("nodejs_demo", MYSQL_USERNAME, MYSQL_PASSWORD, {
 
 // // 数据库初始化方法
 // async function init() {
-//   await Counter.sync({ alter: true });
+//   await Counter.sync({ alter: true })
 // }
 
 const user_game_data = sequelize.define("user_game_data", {

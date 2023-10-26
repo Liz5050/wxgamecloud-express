@@ -3,7 +3,16 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
-const { init: initDB, Counter, initUser_game_data:initUserDB, user_game_data,initUser_data,user_data,sequelize} = require("./db");
+const { 
+  init: initDB, 
+  Counter, 
+  initUser_game_data:initUserDB, 
+  user_game_data,
+  initUser_data,
+  user_data,
+  initShare_reward,
+  share_reward,
+  sequelize} = require("./db");
 
 const logger = morgan("tiny");
 
@@ -296,12 +305,85 @@ app.post("/api/use_grid_skin",async(req,res)=>{
     }
 })
 
+
+//分享奖励
+// 获取领奖状态
+app.get("/api/share_score_reward",async(req,res)=>{
+  if (req.headers["x-wx-source"]) {
+    const openid = req.headers["x-wx-openid"];
+    const item = await share_reward.findAll({
+      where:{
+        openid:openid,
+      }
+    });
+    if(item && item.length > 0){
+      let hadGet = item[0].had_get;
+      res.send({code:0,data:{had_get:hadGet}});
+    }
+    else{
+      //找不到数据，未领取状态
+      res.send({code:0,data:{had_get:0}});
+    }
+  }
+  else {
+    res.send({code:-1,data:"未登录授权"});
+  }
+})
+
+app.post("/api/share_score_reward",async(req,res)=>{
+  if (req.headers["x-wx-source"]) {
+    const openid = req.headers["x-wx-openid"];
+    const { time } = req.body;
+    const nowTime = Date.now();
+    const item = await share_reward.findAll({
+      where:{
+        openid:openid,
+      }
+    });
+    if(item && item.length > 0){
+      //上次领奖时间，重置到0点
+      let shareTime = item[0].share_time;
+      let shareDate = new Date(Number(shareTime));
+      shareDate.setHours(0);
+      shareDate.setMinutes(0);
+      shareDate.setSeconds(0);
+      //判断是否跨天 24*60*60
+      console.log("领取分享奖励shareDate:",shareDate,"newTime:",nowTime);
+      if(nowTime - shareTime >= 86400){
+        //可领取奖励
+        let count = item[0].count;
+        item[0].count = count + 1;
+        item[0].share_time = nowTime;
+        item[0].had_get = 1;
+        res.send({code:0,data:"领取成功"});
+      }
+      else{
+        res.send({code:-1,data:"已领取奖励，还未刷新重置"});
+      }
+    }
+    else{
+      //数据库没有保存，直接判定是可领取状态
+      share_reward.create({
+        openid:openid,
+        share_time:nowTime,
+        share_count:1,
+        had_get:1
+      });
+      res.send({code:0,data:"领取成功"});
+    }
+  }
+  else {
+    res.send({code:-1,data:"未登录授权"});
+  }
+})
+
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
   await initDB();
   await initUserDB();
   await initUser_data();
+  await initShare_reward();
   app.listen(port, () => {
     console.log("启动成功", port);
   });

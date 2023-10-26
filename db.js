@@ -99,6 +99,28 @@ async function initUser_data() {
   await user_data.sync();
 }
 
+const share_reward = sequelize.define("share_reward", {
+  openid: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  share_time: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  share_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  had_get: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+})
+
+async function initShare_reward() {
+  await share_reward.sync();
+}
 
 // 导出初始化方法和模型
 module.exports = {
@@ -108,5 +130,7 @@ module.exports = {
   user_game_data,
   initUser_data,
   user_data,
+  initShare_reward,
+  share_reward,
   sequelize
 };

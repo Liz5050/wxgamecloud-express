@@ -376,7 +376,8 @@ app.post("/api/share_score_reward",async(req,res)=>{
         share_time:nowTime,
         share_count:1
       });
-      res.send({code:0,data:"领取成功"});
+      const curScore = await addUserScore(openid,100);
+      res.send({code:0,data:{score:curScore}});
     }
   }
   else {

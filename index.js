@@ -333,7 +333,6 @@ app.get("/api/share_score_reward",async(req,res)=>{
 app.post("/api/share_score_reward",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const { time } = req.body;
     const nowTime = Date.now();
     const item = await share_reward.findAll({
       where:{
@@ -343,7 +342,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
     if(item && item.length > 0){
       //上次领奖时间，重置到0点
       let shareTime = item[0].share_time;
-      let shareDate = new Date(Number(shareTime));
+      let shareDate = new Date(shareTime);
       shareDate.setHours(0);
       shareDate.setMinutes(0);
       shareDate.setSeconds(0);

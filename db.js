@@ -105,8 +105,8 @@ const share_reward = sequelize.define("share_reward", {
     defaultValue: "",
   },
   share_time: {
-    type: DataTypes.STRING,
-    defaultValue: "",
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
   },
   share_count: {
     type: DataTypes.INTEGER,

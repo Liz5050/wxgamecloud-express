@@ -305,6 +305,13 @@ app.post("/api/use_grid_skin",async(req,res)=>{
     }
 })
 
+//判断time 距离当前时间是否24小时以上了
+function checkNextDay(time){
+  let tDate = new Date(time);
+  tDate.setHours(0,0,0,0);
+  let nowTime = Math.floor(Date.now() / 1000);
+  return nowTime - shareTime >= 86400
+}
 
 //分享奖励
 // 获取领奖状态
@@ -317,7 +324,12 @@ app.get("/api/share_score_reward",async(req,res)=>{
       }
     });
     if(item && item.length > 0){
-      let hadGet = item[0].had_get;
+      let shareTime = item[0].share_time;
+      let hadGet = 1;
+      if(checkNextDay(shareTime)){
+        //超过24小时，可继续领取
+        hadGet = 0;
+      }
       res.send({code:0,data:{had_get:hadGet}});
     }
     else{
@@ -342,16 +354,13 @@ app.post("/api/share_score_reward",async(req,res)=>{
     if(item && item.length > 0){
       //上次领奖时间，重置到0点
       let shareTime = item[0].share_time;
-      let shareDate = new Date(shareTime);
-      shareDate.setHours(0,0,0,0);
       //判断是否跨天 24*60*60
       console.log("领取分享奖励shareDate:",shareDate,"nowTime:",nowTime);
-      if(nowTime - shareTime >= 86400){
-        //可领取奖励
+      if(checkNextDay(shareTime)){
+        //可下发奖励
         let count = item[0].share_count;
         item[0].share_count = count + 1;
         item[0].share_time = nowTime;
-        item[0].had_get = 1;
         await item[0].save();
         const curScore = await addUserScore(openid,100);
         res.send({code:0,data:{score:curScore}});
@@ -365,8 +374,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
       share_reward.create({
         openid:openid,
         share_time:nowTime,
-        share_count:1,
-        had_get:1
+        share_count:1
       });
       res.send({code:0,data:"领取成功"});
     }

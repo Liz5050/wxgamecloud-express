@@ -111,11 +111,7 @@ const share_reward = sequelize.define("share_reward", {
   share_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0,
-  },
-  had_get: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-  },
+  }
 })
 
 async function initShare_reward() {

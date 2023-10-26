@@ -28,29 +28,29 @@ app.get("/", async (req, res) => {
 });
 
 // 更新计数
-app.post("/api/count", async (req, res) => {
-  const { action } = req.body;
-  if (action === "inc") {
-    await Counter.create();
-  } else if (action === "clear") {
-    await Counter.destroy({
-      truncate: true,
-    });
-  }
-  res.send({
-    code: 0,
-    data: await Counter.count(),
-  });
-});
+// app.post("/api/count", async (req, res) => {
+//   const { action } = req.body;
+//   if (action === "inc") {
+//     await Counter.create();
+//   } else if (action === "clear") {
+//     await Counter.destroy({
+//       truncate: true,
+//     });
+//   }
+//   res.send({
+//     code: 0,
+//     data: await Counter.count(),
+//   });
+// });
 
-// 获取计数
-app.get("/api/count", async (req, res) => {
-  const result = await Counter.count();
-  res.send({
-    code: 0,
-    data: result,
-  });
-});
+// // 获取计数
+// app.get("/api/count", async (req, res) => {
+//   const result = await Counter.count();
+//   res.send({
+//     code: 0,
+//     data: result,
+//   });
+// });
 
 // 小程序调用，获取微信 Open ID
 app.get("/api/wx_openid", async (req, res) => {

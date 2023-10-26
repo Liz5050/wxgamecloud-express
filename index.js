@@ -310,7 +310,7 @@ function checkNextDay(time){
   let tDate = new Date(time);
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
-  return nowTime - shareTime >= 86400
+  return nowTime - time >= 86400
 }
 
 //分享奖励
@@ -355,7 +355,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
       //上次领奖时间，重置到0点
       let shareTime = item[0].share_time;
       //判断是否跨天 24*60*60
-      console.log("领取分享奖励shareDate:",shareDate,"nowTime:",nowTime);
+      console.log("领取分享奖励shareTime:",shareTime,"nowTime:",nowTime);
       if(checkNextDay(shareTime)){
         //可下发奖励
         let count = item[0].share_count;

@@ -333,7 +333,7 @@ app.get("/api/share_score_reward",async(req,res)=>{
 app.post("/api/share_score_reward",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const nowTime = Date.now();
+    const nowTime = Math.floor(Date.now() / 1000);
     const item = await share_reward.findAll({
       where:{
         openid:openid,
@@ -343,18 +343,18 @@ app.post("/api/share_score_reward",async(req,res)=>{
       //上次领奖时间，重置到0点
       let shareTime = item[0].share_time;
       let shareDate = new Date(shareTime);
-      shareDate.setHours(0);
-      shareDate.setMinutes(0);
-      shareDate.setSeconds(0);
+      shareDate.setHours(0,0,0,0);
       //判断是否跨天 24*60*60
-      console.log("领取分享奖励shareDate:",shareDate,"newTime:",nowTime);
+      console.log("领取分享奖励shareDate:",shareDate,"nowTime:",nowTime);
       if(nowTime - shareTime >= 86400){
         //可领取奖励
         let count = item[0].share_count;
         item[0].share_count = count + 1;
         item[0].share_time = nowTime;
         item[0].had_get = 1;
-        res.send({code:0,data:"领取成功"});
+        await item[0].save();
+        const curScore = await addUserScore(openid,100);
+        res.send({code:0,data:{score:curScore}});
       }
       else{
         res.send({code:-1,data:"已领取奖励，还未刷新重置"});

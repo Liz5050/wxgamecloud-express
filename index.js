@@ -350,8 +350,8 @@ app.post("/api/share_score_reward",async(req,res)=>{
       console.log("领取分享奖励shareDate:",shareDate,"newTime:",nowTime);
       if(nowTime - shareTime >= 86400){
         //可领取奖励
-        let count = item[0].count;
-        item[0].count = count + 1;
+        let count = item[0].share_count;
+        item[0].share_count = count + 1;
         item[0].share_time = nowTime;
         item[0].had_get = 1;
         res.send({code:0,data:"领取成功"});

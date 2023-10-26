@@ -11,10 +11,10 @@ const sequelize = new Sequelize("nodejs_demo", MYSQL_USERNAME, MYSQL_PASSWORD, {
   dialect: "mysql" /* one of 'mysql' | 'mariadb' | 'postgres' | 'mssql' */,
 });
 
-// 数据库初始化方法
-async function init() {
-  await Counter.sync({ alter: true });
-}
+// // 数据库初始化方法
+// async function init() {
+//   await Counter.sync({ alter: true });
+// }
 
 const user_game_data = sequelize.define("user_game_data", {
   openid: {
@@ -111,8 +111,8 @@ async function initShare_reward() {
 
 // 导出初始化方法和模型
 module.exports = {
-  init,
-  Counter,
+  // init,
+  // Counter,
   initUser_game_data,
   user_game_data,
   initUser_data,

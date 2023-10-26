@@ -4,8 +4,8 @@ const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
 const { 
-  init: initDB, 
-  Counter, 
+  // init: initDB, 
+  // Counter, 
   initUser_game_data:initUserDB, 
   user_game_data,
   initUser_data,
@@ -387,7 +387,6 @@ app.post("/api/share_score_reward",async(req,res)=>{
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
-  await initDB();
   await initUserDB();
   await initUser_data();
   await initShare_reward();

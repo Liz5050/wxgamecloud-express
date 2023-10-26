@@ -371,7 +371,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
     }
     else{
       //数据库没有保存，直接判定是可领取状态
-      share_reward.create({
+      await share_reward.create({
         openid:openid,
         share_time:nowTime,
         share_count:1

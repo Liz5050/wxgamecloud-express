@@ -10,8 +10,8 @@ const {
   user_game_data,
   initUser_data,
   user_data,
-  initShare_reward,
-  share_reward,
+  initShare_rewards,
+  share_rewards,
   sequelize} = require("./db");
 
 const logger = morgan("tiny");
@@ -318,7 +318,7 @@ function checkNextDay(time){
 app.get("/api/share_score_reward",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const item = await share_reward.findAll({
+    const item = await share_rewards.findAll({
       where:{
         openid:openid,
       }
@@ -346,7 +346,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     const nowTime = Math.floor(Date.now() / 1000);
-    const item = await share_reward.findAll({
+    const item = await share_rewards.findAll({
       where:{
         openid:openid,
       }
@@ -371,7 +371,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
     }
     else{
       //数据库没有保存，直接判定是可领取状态
-      await share_reward.create({
+      await share_rewards.create({
         openid:openid,
         share_time:nowTime,
         share_count:1
@@ -390,7 +390,7 @@ const port = process.env.PORT || 80;
 async function bootstrap() {
   await initUserDB();
   await initUser_data();
-  await initShare_reward();
+  await initShare_rewards();
   app.listen(port, () => {
     console.log("启动成功", port);
   });

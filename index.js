@@ -85,17 +85,19 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
         let d = item[i];
         let resData = resUserDict[d.openid]
         if(!resData){
-          resData = {}
+          resData = {openid:d.openid};
           resUserDict[d.openid] = resData;
           resUserArr.push(resData);
         }
-        for(let key in d){
-          let value = d[key];
-          if(key == "nick_name"){
-            value = new String(Base64.getDecoder().decode(value), "UTF-8");
-          }
-          resData[key] = value;
-        }
+        resData.id = d.id;
+        resData.avatar_url = d.avatar_url;
+        resData.nick_name = new String(Base64.getDecoder().decode(d.nick_name), "UTF-8");
+        resData.score = d.score;
+        resData.game_type = d.game_type;
+        resData.sub_type = d.sub_type;
+        resData.play_time = d.play_time;
+        resData.record_time = d.record_time;
+        
       }
       res.send({code:0,data:resUserArr});
     } else {

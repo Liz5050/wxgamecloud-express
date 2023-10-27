@@ -92,8 +92,13 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
         }
         resData.id = d.id;
         resData.avatar_url = d.avatar_url;
-        const buf = Buffer.from(d.nick_name_buffer)
-        resData.nick_name = buf.toString();
+        if(d.nick_name_buffer != null){
+          const buf = Buffer.from(d.nick_name_buffer);
+          resData.nick_name = buf.toString();
+        }
+        else{
+          resData.nick_name = d.nick_name;
+        }
         resData.score = d.score;
         resData.game_type = d.game_type;
         resData.sub_type = d.sub_type;

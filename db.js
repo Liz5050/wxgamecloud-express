@@ -47,7 +47,7 @@ const user_game_data = sequelize.define("user_game_data", {
   },
   nick_name_buffer:{
     type:DataTypes.BLOB,
-    defaultValue:[]
+    defaultValue:""
   },
   avatar_url: {
     type: DataTypes.STRING,

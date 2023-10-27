@@ -144,8 +144,14 @@ async function addUserScore(openid,score,nickName){
     let curScore = user_data_item[0].score;
     curScore += score;
     user_data_item[0].score = curScore;
-    if(nickName && nickName != ""){
-      user_data_item[0].nick_name = nickName;
+    try{
+      if(nickName && nickName != ""){
+        user_data_item[0].nick_name = nickName;
+        user_data_item[0].nick_name_buffer = nickName;
+      }
+    }
+    catch{
+      console.error("nick_name_buff error",nickName);
     }
     await user_data_item[0].save();
     return curScore;

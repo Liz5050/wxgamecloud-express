@@ -59,8 +59,6 @@ app.get("/api/wx_openid", async (req, res) => {
   }
 });
 
-let resUserDict = {}
-let resUserArr = [];
 app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   const game_type = req.params.game_type;
   const sub_type = req.params.sub_type;
@@ -81,31 +79,31 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
       console.error("error")
     });
     if (item && item.length > 0) {
-      for(let i = 0; i < item.length ; i ++){
-        let d = item[i];
-        let resData = resUserDict[d.openid]
-        if(!resData){
-          resData = {openid:d.openid};
-          resUserDict[d.openid] = resData;
-          resUserArr.push(resData);
-        }
-        resData.id = d.id;
-        resData.avatar_url = d.avatar_url;
-        if(d.nick_name_buffer != null){
-          const buf = Buffer.from(d.nick_name_buffer);
-          resData.nick_name = buf.toString();
-        }
-        else{
-          resData.nick_name = d.nick_name;
-        }
-        resData.score = d.score;
-        resData.game_type = d.game_type;
-        resData.sub_type = d.sub_type;
-        resData.play_time = d.play_time;
-        resData.record_time = d.record_time;
+      // for(let i = 0; i < item.length ; i ++){
+      //   let d = item[i];
+      //   let resData = resUserDict[d.openid]
+      //   if(!resData){
+      //     resData = {openid:d.openid};
+      //     resUserDict[d.openid] = resData;
+      //     resUserArr.push(resData);
+      //   }
+      //   resData.id = d.id;
+      //   resData.avatar_url = d.avatar_url;
+      //   if(d.nick_name_buffer != null){
+      //     const buf = Buffer.from(d.nick_name_buffer);
+      //     resData.nick_name = buf.toString();
+      //   }
+      //   else{
+      //     resData.nick_name = d.nick_name;
+      //   }
+      //   resData.score = d.score;
+      //   resData.game_type = d.game_type;
+      //   resData.sub_type = d.sub_type;
+      //   resData.play_time = d.play_time;
+      //   resData.record_time = d.record_time;
         
-      }
-      res.send({code:0,data:resUserArr});
+      // }
+      res.send({code:0,data:item});
     } else {
       res.send({code:0,data:"查询失败"});
     }
@@ -218,7 +216,6 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     }
     else {
-      const buf = Buffer.from(nickName,"utf-8");
       const ugameData = await user_game_data.create({
         openid:openid,
         game_type:game_data.game_type,
@@ -226,7 +223,6 @@ app.post("/api/user_game_data",async (req,res) =>{
         score:score,
         play_time:game_data.add_play_time,
         nick_name:nickName,
-        nick_name_buffer:buf,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time
       });
@@ -280,11 +276,15 @@ app.post("/api/buy_skin",async(req,res)=>{
     if(user_data_item && user_data_item.length > 0){
       let item = user_data_item[0]
       let skinListStr = item.skin_list;
-      let skinList = [];
+      let skinList;
       if(skinListStr && skinListStr != ""){
         skinList = skinListStr.split(",");
       }
-      console.log("当前皮肤列表",skinList,skinList.length)
+      else{
+        skinListStr = "";
+        skinList = [];
+      }
+      console.log("当前皮肤列表",skinList,skinList.length);
       if(skinList.indexOf(String(skin_id)) != -1){
         res.send({code:0,data:"已拥有skin_id:" + skin_id});
       }
@@ -407,8 +407,8 @@ app.post("/api/share_score_reward",async(req,res)=>{
         share_time:nowTime,
         share_count:1
       });
-      const curScore = await addUserScore(openid,100);
-      res.send({code:0,data:{score:curScore}});
+      await addUserScore(openid,100);
+      res.send({code:0,data:{score:100}});
     }
   }
   else {

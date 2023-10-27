@@ -59,6 +59,8 @@ app.get("/api/wx_openid", async (req, res) => {
   }
 });
 
+let resUserDict = {}
+let resUserArr = [];
 app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   const game_type = req.params.game_type;
   const sub_type = req.params.sub_type;
@@ -79,7 +81,23 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
       console.error("error")
     });
     if (item && item.length > 0) {
-      res.send({code:0,data:item});
+      for(let i = 0; i < item.length ; i ++){
+        let d = item[i];
+        let resData = resUserDict[d.openid]
+        if(!resData){
+          resData = {}
+          resUserDict[d.openid] = resData;
+          resUserArr.push(resData);
+        }
+        for(let key in d){
+          let value = d[key];
+          if(key == "nick_name"){
+            value = new String(Base64.getDecoder().decode(value), "UTF-8");
+          }
+          resData[key] = value;
+        }
+      }
+      res.send({code:0,data:resUserArr});
     } else {
       res.send({code:0,data:"查询失败"});
     }
@@ -108,7 +126,7 @@ app.get("/api/user_game_data/:game_type?/:sub_type?",async (req,res) =>{
 });
 
 //保存玩家游戏积分（货币）
-async function addUserScore(openid,score,user_info = null){
+async function addUserScore(openid,score,nickName){
   const user_data_item = await user_data.findAll({
     where:{
       openid:openid,
@@ -120,9 +138,8 @@ async function addUserScore(openid,score,user_info = null){
     let curScore = user_data_item[0].score;
     curScore += score;
     user_data_item[0].score = curScore;
-    if(user_info){
-      user_data_item[0].nick_name = user_info.nickName;
-      user_data_item[0].avatar_url = user_info.avatarUrl;
+    if(nickName && nickName != ""){
+      user_data_item[0].nick_name = nickName;
     }
     await user_data_item[0].save();
     return curScore;
@@ -131,8 +148,8 @@ async function addUserScore(openid,score,user_info = null){
   else{
     await user_data.create({
       openid:openid,
-      nick_name:user_info ? user_info.nickName : "",
-      avatar_url:user_info ? user_info.avatarUrl : "",
+      nick_name:nickName,
+      avatar_url:"",
       score:score,
       skin_id:0,
       skin_list:""
@@ -159,8 +176,12 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     });
 
+    const nickName = "";
+    if(user_info){
+      nickName = Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
+    }
     if(game_data.game_type == 1002){
-      await addUserScore(openid,game_data.score,user_info);
+      await addUserScore(openid,game_data.score,nickName);
     }
 
     if(item && item.length > 0){
@@ -189,13 +210,14 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     }
     else {
+      // const nickName = Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
       const ugameData = await user_game_data.create({
         openid:openid,
         game_type:game_data.game_type,
         sub_type:subType,
         score:score,
         play_time:game_data.add_play_time,
-        nick_name:user_info.nickName,
+        nick_name:nickName,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time
       });

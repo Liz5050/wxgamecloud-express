@@ -178,7 +178,7 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     });
 
-    const nickName = "";
+    let nickName = "";
     if(user_info){
       nickName = Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
     }

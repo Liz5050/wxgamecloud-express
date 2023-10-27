@@ -347,6 +347,7 @@ function checkNextDay(time){
   let tDate = new Date(time);
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
+  console.log("checkNextDay",time,"tDate:",tDate,"nowTime:",nowTime)
   return nowTime - Math.floor(tDate.getTime() / 1000) >= 86400;
 }
 

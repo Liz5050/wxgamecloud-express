@@ -347,7 +347,7 @@ function checkNextDay(time){
   let tDate = new Date(time);
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
-  return nowTime - time >= 86400
+  return nowTime - time >= 86400 , nowTime
 }
 
 //分享奖励
@@ -363,8 +363,9 @@ app.get("/api/share_score_reward",async(req,res)=>{
     if(item && item.length > 0){
       let shareTime = item[0].share_time;
       let hadGet = 1;
-      console.log("获取领奖状态nowTime:",nowTime,"shareTime:"+shareTime)
-      if(checkNextDay(shareTime)){
+      let nextDay , nowTime = checkNextDay(shareTime)
+      console.log("获取领奖状态nowTime:",nowTime,"shareTime:"+shareTime);
+      if(nextDay){
         //超过24小时，可继续领取
         hadGet = 0;
       }

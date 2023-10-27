@@ -249,10 +249,10 @@ app.post("/api/buy_skin",async(req,res)=>{
     if(user_data_item && user_data_item.length > 0){
       let item = user_data_item[0]
       let skinListStr = item.skin_list;
-      if(!skinListStr){
-        skinListStr = "";
+      let skinList = [];
+      if(skinListStr && skinListStr != ""){
+        skinList = skinListStr.split(",");
       }
-      let skinList = skinListStr.split(",");
       console.log("当前皮肤列表",skinList,skinList.length)
       if(skinList.indexOf(String(skin_id)) != -1){
         res.send({code:0,data:"已拥有skin_id:" + skin_id});

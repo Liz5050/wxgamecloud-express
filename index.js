@@ -344,10 +344,11 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 
 //判断time 距离当前时间是否24小时以上了
 function checkNextDay(time){
-  let tDate = new Date(time);
+  let tDate = new Date(time * 1000);
+  //上次领奖时间，重置到0点
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
-  console.log("checkNextDay",time,"tDate:",tDate,"nowTime:",nowTime)
+  //判断是否跨天 24*60*60
   return nowTime - Math.floor(tDate.getTime() / 1000) >= 86400;
 }
 
@@ -390,10 +391,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
       }
     });
     if(item && item.length > 0){
-      //上次领奖时间，重置到0点
       let shareTime = item[0].share_time;
-      //判断是否跨天 24*60*60
-      console.log("领取分享奖励shareTime:",shareTime,"nowTime:",nowTime);
       if(checkNextDay(shareTime)){
         //可下发奖励
         let count = item[0].share_count;

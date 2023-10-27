@@ -91,7 +91,8 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
         }
         resData.id = d.id;
         resData.avatar_url = d.avatar_url;
-        resData.nick_name = new String(Base64.getDecoder().decode(d.nick_name), "UTF-8");
+        const buf = Buffer.from(d.nick_name_buffer)
+        resData.nick_name = buf.toString();
         resData.score = d.score;
         resData.game_type = d.game_type;
         resData.sub_type = d.sub_type;
@@ -180,7 +181,7 @@ app.post("/api/user_game_data",async (req,res) =>{
 
     let nickName = "";
     if(user_info){
-      nickName = Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
+      nickName = user_info.nickName;//Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
     }
     if(game_data.game_type == 1002){
       await addUserScore(openid,game_data.score,nickName);
@@ -213,6 +214,7 @@ app.post("/api/user_game_data",async (req,res) =>{
     }
     else {
       // const nickName = Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
+      const buf = Buffer.from(nickName,"utf-8");
       const ugameData = await user_game_data.create({
         openid:openid,
         game_type:game_data.game_type,
@@ -220,6 +222,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         score:score,
         play_time:game_data.add_play_time,
         nick_name:nickName,
+        nick_name_buffer:buf,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time
       });

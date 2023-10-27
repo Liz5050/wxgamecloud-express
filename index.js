@@ -399,8 +399,8 @@ app.post("/api/share_score_reward",async(req,res)=>{
         item[0].share_count = count + 1;
         item[0].share_time = nowTime;
         await item[0].save();
-        const curScore = await addUserScore(openid,100);
-        res.send({code:0,data:{score:curScore}});
+        await addUserScore(openid,100);
+        res.send({code:0,data:{score:100}});
       }
       else{
         res.send({code:-1,data:"已领取奖励，还未刷新重置"});

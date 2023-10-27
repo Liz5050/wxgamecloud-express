@@ -1,4 +1,3 @@
-import {Buffer} from 'node:buffer';
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -187,7 +186,7 @@ app.post("/api/user_game_data",async (req,res) =>{
 
     let nickName = "";
     if(user_info){
-      nickName = user_info.nickName;//Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
+      nickName = user_info.nickName;
     }
     if(game_data.game_type == 1002){
       await addUserScore(openid,game_data.score,nickName);
@@ -219,7 +218,6 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     }
     else {
-      // const nickName = Base64.getEncoder().encodeToString(user_info.nickName.getBytes("UTF-8"));
       const buf = Buffer.from(nickName,"utf-8");
       const ugameData = await user_game_data.create({
         openid:openid,

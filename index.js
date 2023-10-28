@@ -15,7 +15,8 @@ const {
   sequelize} = require("./db");
 
 const logger = morgan("tiny");
-
+const regStr = "(?:[\uD83C\uDF00\uD83D\uDDFF\uD83E\uDD00\uDE00\uDE4F\uDE80\uDEFF\uDD71\uDD7E\uDD7F\uDD8E\uDD91\uDD9A\u20E3\u2194\u2199\u21A9\u21AA\u2B05\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3299])";
+const regex = new RegExp(regStr,"g");
 const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
@@ -172,7 +173,12 @@ async function addUserScore(openid,score,nickName){
 
 app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
-  console.log("保存用户游戏数据",game_data,user_info);
+  let nickName = "";
+  if(user_info){
+    nickName = user_info.nickName;
+  }
+  const filterEmojiName = nickName.replace(regex,"");
+  console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     let subType = game_data.sub_type;
@@ -188,12 +194,9 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     });
 
-    let nickName = "";
-    if(user_info){
-      nickName = user_info.nickName;
-    }
+    
     if(game_data.game_type == 1002){
-      await addUserScore(openid,game_data.score,nickName);
+      await addUserScore(openid,game_data.score,filterEmojiName);
     }
 
     if(item && item.length > 0){
@@ -228,7 +231,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         sub_type:subType,
         score:score,
         play_time:game_data.add_play_time,
-        nick_name:nickName,
+        nick_name:filterEmojiName,
         avatar_url:user_info.avatarUrl,
         record_time:game_data.record_time
       });

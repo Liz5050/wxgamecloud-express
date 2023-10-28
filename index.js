@@ -80,30 +80,6 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
       console.error("error")
     });
     if (item && item.length > 0) {
-      // for(let i = 0; i < item.length ; i ++){
-      //   let d = item[i];
-      //   let resData = resUserDict[d.openid]
-      //   if(!resData){
-      //     resData = {openid:d.openid};
-      //     resUserDict[d.openid] = resData;
-      //     resUserArr.push(resData);
-      //   }
-      //   resData.id = d.id;
-      //   resData.avatar_url = d.avatar_url;
-      //   if(d.nick_name_buffer != null){
-      //     const buf = Buffer.from(d.nick_name_buffer);
-      //     resData.nick_name = buf.toString();
-      //   }
-      //   else{
-      //     resData.nick_name = d.nick_name;
-      //   }
-      //   resData.score = d.score;
-      //   resData.game_type = d.game_type;
-      //   resData.sub_type = d.sub_type;
-      //   resData.play_time = d.play_time;
-      //   resData.record_time = d.record_time;
-        
-      // }
       res.send({code:0,data:item});
     } else {
       res.send({code:0,data:"查询失败"});
@@ -145,14 +121,8 @@ async function addUserScore(openid,score,nickName){
     let curScore = user_data_item[0].score;
     curScore += score;
     user_data_item[0].score = curScore;
-    try{
-      if(nickName && nickName != ""){
-        user_data_item[0].nick_name = nickName;
-        user_data_item[0].nick_name_buffer = nickName;
-      }
-    }
-    catch{
-      console.error("nick_name_buff error",nickName);
+    if(nickName && nickName != ""){
+      user_data_item[0].nick_name = nickName;
     }
     await user_data_item[0].save();
     return curScore;

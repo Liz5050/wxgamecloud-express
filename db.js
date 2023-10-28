@@ -45,10 +45,6 @@ const user_game_data = sequelize.define("user_game_data", {
     type: DataTypes.STRING,
     defaultValue: "",
   },
-  nick_name_buffer:{
-    type:DataTypes.BLOB,
-    defaultValue:null
-  },
   avatar_url: {
     type: DataTypes.STRING,
     defaultValue: "",
@@ -71,10 +67,6 @@ const user_data = sequelize.define("user_data", {
   nick_name: {
     type: DataTypes.STRING,
     defaultValue: "",
-  },
-  nick_name_buffer:{
-    type:DataTypes.BLOB,
-    defaultValue:null
   },
   avatar_url: {
     type: DataTypes.STRING,

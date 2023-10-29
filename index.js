@@ -318,7 +318,7 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 //判断time 距离当前时间是否24小时以上了
 function checkNextDay(time){
   let tDate = new Date();
-  tDate.setTime(time * 1000 + 28800);
+  tDate.setTime(time * 1000 + 28800000);
   //上次领奖时间，重置到0点
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);

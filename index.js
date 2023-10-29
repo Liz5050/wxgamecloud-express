@@ -318,11 +318,11 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 //判断time 距离当前时间是否24小时以上了
 function checkNextDay(time){
   let tDate = new Date();
-  tDate.setTime(time * 1000);
+  tDate.setTime(time * 1000 + 28800);
   //上次领奖时间，重置到0点
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
-  let lastTime = Math.floor(tDate.getTime() / 1000) - 28800//东八区，减8小时才是0点;
+  let lastTime = Math.floor(tDate.getTime() / 1000) - 28800;//东八区，减8小时才是0点;
   console.log("checkNextDay nowTime：" + nowTime,"lastTime：" + lastTime,"time：" + time,tDate);
   //判断是否跨天 24*60*60
   return nowTime - lastTime >= 86400;

@@ -319,11 +319,14 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 function checkNextDay(time){
   let tDate = new Date(time * 1000);
   //上次领奖时间，重置到0点
-  tDate.setHours(0,0,0,0);
-  let timeZone = tDate.getTimezoneOffset();
+  // tDate.setHours(0,0,0,0);
+  tDate.setUTCHours(0);
+  tDate.setUTCMinutes(0);
+  tDate.setUTCSeconds(0);
+  tDate.setMilliseconds(0);
   let nowTime = Math.floor(Date.now() / 1000);
-  let lastTime = Math.floor(tDate.getTime() / 1000) - timeZone * 60;
-  console.log("checkNextDay",nowTime,lastTime,timeZone);
+  let lastTime = Math.floor(tDate.getTime() / 1000);
+  console.log("checkNextDay nowTime：" + nowTime,"lastTime：" + lastTime);
   //判断是否跨天 24*60*60
   return nowTime - lastTime >= 86400;
 }

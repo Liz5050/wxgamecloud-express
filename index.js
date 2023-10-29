@@ -319,7 +319,8 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 function checkNextDay(time,openid = null){
   let tDate = new Date(time * 1000);
   //上次领奖时间，重置到0点
-  tDate.setHours(0,0,0,0);
+  // tDate.setHours(0,0,0,0);
+  tDate.setUTCHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
   //判断是否跨天 24*60*60
   let lastTime = Math.floor(tDate.getTime() / 1000);

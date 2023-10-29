@@ -316,13 +316,15 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 })
 
 //判断time 距离当前时间是否24小时以上了
-function checkNextDay(time){
+function checkNextDay(time,openid = null){
   let tDate = new Date(time * 1000);
   //上次领奖时间，重置到0点
   tDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
   //判断是否跨天 24*60*60
-  return nowTime - Math.floor(tDate.getTime() / 1000) >= 86400;
+  let lastTime = Math.floor(tDate.getTime() / 1000);
+  console.log("checkNextDay",nowTime,lastTime,openid)
+  return nowTime - lastTime >= 86400;
 }
 
 //分享奖励
@@ -338,7 +340,7 @@ app.get("/api/share_score_reward",async(req,res)=>{
     if(item && item.length > 0){
       let shareTime = item[0].share_time;
       let hadGet = 1;
-      if(checkNextDay(shareTime)){
+      if(checkNextDay(shareTime,openid)){
         //超过24小时，可继续领取
         hadGet = 0;
       }
@@ -365,7 +367,7 @@ app.post("/api/share_score_reward",async(req,res)=>{
     });
     if(item && item.length > 0){
       let shareTime = item[0].share_time;
-      if(checkNextDay(shareTime)){
+      if(checkNextDay(shareTime,openid)){
         //可下发奖励
         let count = item[0].share_count;
         item[0].share_count = count + 1;

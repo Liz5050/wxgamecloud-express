@@ -63,7 +63,7 @@ app.get("/api/wx_openid", async (req, res) => {
 app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   const game_type = req.params.game_type;
   const sub_type = req.params.sub_type;
-  console.log("获取所有玩家的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
+  // console.log("获取所有玩家的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
   if(game_type){
     let orderStr = 'DESC';
     if(game_type == 1001){
@@ -90,7 +90,7 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
 app.get("/api/user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   const game_type = req.params.game_type;
   const sub_type = req.params.sub_type;
-  console.log("获取玩家自己的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
+  // console.log("获取玩家自己的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
   if(game_type){
     const openid = req.headers["x-wx-openid"];
     const item = await user_game_data.findAll({
@@ -148,7 +148,7 @@ app.post("/api/user_game_data",async (req,res) =>{
     nickName = user_info.nickName;
   }
   const filterEmojiName = nickName.replace(regex,"");
-  console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
+  // console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     let subType = game_data.sub_type;
@@ -263,14 +263,14 @@ app.post("/api/buy_skin",async(req,res)=>{
         skinListStr = "";
         skinList = [];
       }
-      console.log("当前皮肤列表",skinList,skinList.length);
+      // console.log("当前皮肤列表",skinList,skinList.length);
       if(skinList.indexOf(String(skin_id)) != -1){
         res.send({code:0,data:"已拥有skin_id:" + skin_id});
       }
       else{
         let shopCfg = game_config.shop.getByPk(skin_id);
         if(!shopCfg){
-          console.log("shop配置错误:",skin_id,game_config.shop);
+          // console.log("shop配置错误:",skin_id,game_config.shop);
         }
         else {
           if(item.score >= shopCfg.price){
@@ -316,14 +316,14 @@ app.post("/api/use_grid_skin",async(req,res)=>{
 })
 
 //判断time 距离当前时间是否24小时以上了
+var checkDate = new Date();
 function checkNextDay(time){
-  let tDate = new Date();
-  tDate.setTime(time * 1000 + 28800000);
+  checkDate.setTime(time * 1000 + 28800000);
   //上次领奖时间，重置到0点
-  tDate.setHours(0,0,0,0);
+  checkDate.setHours(0,0,0,0);
   let nowTime = Math.floor(Date.now() / 1000);
-  let lastTime = Math.floor(tDate.getTime() / 1000) - 28800;//东八区，减8小时才是0点;
-  console.log("checkNextDay nowTime：" + nowTime,"lastTime：" + lastTime,"time：" + time,tDate);
+  let lastTime = Math.floor(checkDate.getTime() / 1000) - 28800;//东八区，减8小时才是0点;
+  // console.log("checkNextDay nowTime：" + nowTime,"lastTime：" + lastTime,"time：" + time,tDate);
   //判断是否跨天 24*60*60
   return nowTime - lastTime >= 86400;
 }

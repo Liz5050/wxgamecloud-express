@@ -183,6 +183,9 @@ app.post("/api/user_game_data",async (req,res) =>{
       playTime += game_data.add_play_time;
       item[0].play_time = playTime;
       if(newRecord){
+        if(item[0].nick_name && item[0].nick_name != "" && !user_info){
+          filterEmojiName = item[0].nick_name;
+        }
         item[0].set({
           score:score,
           record_time:game_data.record_time,

@@ -143,12 +143,14 @@ async function addUserScore(openid,score,nickName){
 
 app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
-  let nickName = "";
+  let nickName = "神秘人";
+  let avatarUrl = "";
   if(user_info){
     nickName = user_info.nickName;
+    avatarUrl = user_info.avatar_url;
   }
   const filterEmojiName = nickName.replace(regex,"");
-  // console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
+  console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     let subType = game_data.sub_type;
@@ -163,7 +165,6 @@ app.post("/api/user_game_data",async (req,res) =>{
         sub_type:subType
       }
     });
-
     
     if(game_data.game_type == 1002){
       await addUserScore(openid,game_data.score,filterEmojiName);
@@ -184,7 +185,9 @@ app.post("/api/user_game_data",async (req,res) =>{
       if(newRecord){
         item[0].set({
           score:score,
-          record_time:game_data.record_time
+          record_time:game_data.record_time,
+          nick_name:filterEmojiName,
+          avatar_url:avatarUrl,
         });
         await item[0].save();
         res.send({code:0,data:item});
@@ -202,7 +205,7 @@ app.post("/api/user_game_data",async (req,res) =>{
         score:score,
         play_time:game_data.add_play_time,
         nick_name:filterEmojiName,
-        avatar_url:user_info.avatarUrl,
+        avatar_url:avatarUrl,
         record_time:game_data.record_time
       });
       res.send({code:0,data:ugameData});

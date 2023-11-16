@@ -169,6 +169,7 @@ app.post("/api/user_game_data",async (req,res) =>{
     
     let existData = item && item.length > 0;
     if(existData && item[0].nick_name && item[0].nick_name != "" && !user_info){
+      console.log(filterEmojiName + item[0].id);
       filterEmojiName = item[0].nick_name;
       avatarUrl = item[0].avatar_url;
     }

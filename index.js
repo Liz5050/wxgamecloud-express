@@ -143,13 +143,14 @@ async function addUserScore(openid,score,nickName){
 
 app.post("/api/user_game_data",async (req,res) =>{
   const { game_data,user_info } = req.body;
-  let nickName = "神秘人";
+  let nickName = "神秘玩家";
   let avatarUrl = "";
+  let filterEmojiName = "神秘玩家";
   if(user_info){
     nickName = user_info.nickName;
     avatarUrl = user_info.avatar_url;
+    filterEmojiName = nickName.replace(regex,"");
   }
-  const filterEmojiName = nickName.replace(regex,"");
   console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
@@ -166,11 +167,15 @@ app.post("/api/user_game_data",async (req,res) =>{
       }
     });
     
+    let existData = item && item.length > 0;
+    if(existData && item[0].nick_name && item[0].nick_name != "" && !user_info){
+      filterEmojiName = item[0].nick_name;
+    }
     if(game_data.game_type == 1002){
       await addUserScore(openid,game_data.score,filterEmojiName);
     }
 
-    if(item && item.length > 0){
+    if(existData){
       let newRecord = false;
       if(game_data.game_type == 1001){
         //舒尔特挑战是按时间算，数值小的才算新记录
@@ -183,9 +188,6 @@ app.post("/api/user_game_data",async (req,res) =>{
       playTime += game_data.add_play_time;
       item[0].play_time = playTime;
       if(newRecord){
-        if(item[0].nick_name && item[0].nick_name != "" && !user_info){
-          filterEmojiName = item[0].nick_name;
-        }
         item[0].set({
           score:score,
           record_time:game_data.record_time,

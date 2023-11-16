@@ -148,7 +148,7 @@ app.post("/api/user_game_data",async (req,res) =>{
   let filterEmojiName = "神秘玩家";
   if(user_info){
     nickName = user_info.nickName;
-    avatarUrl = user_info.avatar_url;
+    avatarUrl = user_info.avatarUrl;
     filterEmojiName = nickName.replace(regex,"");
   }
   console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);

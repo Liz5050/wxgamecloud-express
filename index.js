@@ -418,6 +418,7 @@ app.post("/api/game_grid_save",async(req,res)=>{
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { jsonStr } = req.body;
+    console.log("saveData：" + jsonStr);
 		const item = await game_grid_save_data.findAll({
 			where:{openid:openid}
 		});

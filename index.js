@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
-const {initGameGridSave,game_grid_save_data} = require("./module/gameGrid/GameGridSaveDB");
 const { 
   // init: initDB, 
   // Counter, 
@@ -13,6 +12,7 @@ const {
   user_data,
   initShare_rewards,
   share_rewards,
+  initGameGridSave,game_grid_save_data,
   sequelize} = require("./db");
 
 const logger = morgan("tiny");

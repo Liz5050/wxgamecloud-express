@@ -1,6 +1,5 @@
 const { DataTypes } = require("sequelize");
 const {sequelize} = require("../../db.js");
-var isInit = false;
 const game_grid_save_data = sequelize.define("game_grid_save_data", {
 	openid: {
 		type: DataTypes.STRING,
@@ -17,10 +16,7 @@ const game_grid_save_data = sequelize.define("game_grid_save_data", {
 })
 
 async function initGameGridSave() {
-	if(!isInit){
-		isInit = true;
-		await game_grid_save_data.sync();
-	}
+	await game_grid_save_data.sync();
 }
 module.exports = {
 	initGameGridSave,

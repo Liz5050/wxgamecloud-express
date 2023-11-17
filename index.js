@@ -168,10 +168,16 @@ app.post("/api/user_game_data",async (req,res) =>{
     });
     
     let existData = item && item.length > 0;
-    if(existData && item[0].nick_name && item[0].nick_name != "" && !user_info){
-      console.log(filterEmojiName + item[0].id);
-      filterEmojiName = item[0].nick_name;
-      avatarUrl = item[0].avatar_url;
+    if(!user_info && existData){
+      if(item[0].avatar_url && item[0].avatar_url != ""){
+        //兼容已授权用户，后面又取消授权，取以前保存的旧数据显示
+        console.log(filterEmojiName + item[0].id);
+        filterEmojiName = item[0].nick_name;
+        avatarUrl = item[0].avatar_url;
+      }
+      else {
+        filterEmojiName = filterEmojiName + item[0].id;
+      }
     }
     if(game_data.game_type == 1002){
       await addUserScore(openid,game_data.score,filterEmojiName);

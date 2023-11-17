@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
+require("./module/gameGrid/GameGridSaveDB");
 const { 
   // init: initDB, 
   // Counter, 

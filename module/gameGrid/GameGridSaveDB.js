@@ -65,7 +65,7 @@ app.get("/api/game_grid_save",async(req,res)=>{
 				res.send({code:0,data:jsonStr});
 			}
 			else{
-				res.send({code:-1,data:"数据失效"});
+				res.send({code:-1,data:"数据已失效"});
 			}
 		}
 		else{

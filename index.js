@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
-require("./module/gameGrid/GameGridSaveDB");
 const { 
   // init: initDB, 
   // Counter, 
@@ -24,6 +23,7 @@ app.use(express.json());
 app.use(cors());
 app.use(logger);
 
+require("./module/gameGrid/GameGridSaveDB");
 // 首页
 app.get("/", async (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));

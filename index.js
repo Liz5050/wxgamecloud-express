@@ -425,3 +425,4 @@ async function bootstrap() {
 }
 
 bootstrap();
+module.exports = {app};

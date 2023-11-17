@@ -1,3 +1,4 @@
+const { DataTypes } = require("sequelize");
 const {sequelize} = require("../../db.js");
 const {app} = require("../../index.js");
 var isInit = false;
@@ -24,7 +25,7 @@ async function initGameGridSave() {
 }
 
 app.post("/api/game_grid_save",async(req,res)=>{
-	initGameGridSave();
+	await initGameGridSave();
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { jsonStr } = req.body;
@@ -49,7 +50,7 @@ app.post("/api/game_grid_save",async(req,res)=>{
 })
 
 app.get("/api/game_grid_save",async(req,res)=>{
-	initGameGridSave();
+	await initGameGridSave();
 	if (req.headers["x-wx-source"]) {
         const openid = req.headers["x-wx-openid"];
 		const item = await game_grid_save_data.findAll({

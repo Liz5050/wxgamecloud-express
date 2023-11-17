@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
+const {initGameGridSave,game_grid_save_data} = require("./module/gameGrid/GameGridSaveDB");
 const { 
   // init: initDB, 
   // Counter, 
@@ -23,7 +24,6 @@ app.use(express.json());
 app.use(cors());
 app.use(logger);
 
-require("./module/gameGrid/GameGridSaveDB");
 // 首页
 app.get("/", async (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
@@ -414,16 +414,64 @@ app.post("/api/share_score_reward",async(req,res)=>{
   }
 })
 
+app.post("/api/game_grid_save",async(req,res)=>{
+	if (req.headers["x-wx-source"]) {
+		const openid = req.headers["x-wx-openid"];
+		const { jsonStr } = req.body;
+		const item = await game_grid_save_data.findAll({
+			where:{openid:openid}
+		});
+		if(item && item.length > 0){
+			item[0].data_str = jsonStr;
+			item[0].is_valid = 1;
+			await item[0].save();
+			res.send({code:0,data:{result:"保存成功"}});
+		}
+		else{
+			await game_grid_save_data.create({
+				openid:openid,
+				data_str:jsonStr,
+				is_valid:1
+			});
+			res.send({code:0,data:{result:"保存成功"}});
+		}
+	}
+})
+
+app.get("/api/game_grid_save",async(req,res)=>{
+	if (req.headers["x-wx-source"]) {
+        const openid = req.headers["x-wx-openid"];
+		const item = await game_grid_save_data.findAll({
+			where:{openid:openid}
+		});
+		if(item && item.length > 0){
+			let jsonStr = item[0].data_str;
+			let is_valid = item[0].is_valid;
+			if(is_valid == 1){
+				item[0].is_valid = 0;
+				await item[0].save(); 
+				res.send({code:0,data:jsonStr});
+			}
+			else{
+				res.send({code:-1,data:"数据已失效"});
+			}
+		}
+		else{
+			res.send({code:-1,data:"暂无数据"});
+		}
+	}
+})
+
 const port = process.env.PORT || 80;
 
 async function bootstrap() {
   await initUserDB();
   await initUser_data();
   await initShare_rewards();
+  await initGameGridSave();
   app.listen(port, () => {
     console.log("启动成功", port);
   });
 }
 
 bootstrap();
-module.exports = {app};

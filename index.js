@@ -162,14 +162,17 @@ app.post("/api/user_game_data",async (req,res) =>{
   console.log("保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,game_data,user_info);
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    if(checkIllegalUser(openid)){
-      console.log("违规用户:"+nickName,game_data,user_info);
-      return;
-    }
     let subType = game_data.sub_type;
     let score = game_data.score;
     if(!subType){
       subType = 0;
+    }
+    if(game_data.game_type == 1001){
+      if(checkIllegalUser(openid)){
+        console.log("违规用户:"+ nickName,game_data,user_info);
+        res.send({code:-1,openid:openid});
+        return;
+      }
     }
     const item = await user_game_data.findAll({
       where:{

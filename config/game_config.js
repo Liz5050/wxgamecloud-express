@@ -72,7 +72,15 @@ class SkinShopConfig extends BaseConfig {
     }
 }
 
+class GameIllegalUserConfig extends BaseConfig {
+    constructor(){
+        super("illegal_user","openid");
+    }
+}
+
 const shop = new SkinShopConfig();
+const illegal = new GameIllegalUserConfig();
 module.exports = {
     shop,
+	illegal
 }

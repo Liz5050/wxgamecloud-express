@@ -67,15 +67,21 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
   // console.log("获取所有玩家的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
   if(game_type){
     let orderStr = 'DESC';
+    let findSubtype = 0;
     if(game_type == 1001){
       orderStr = 'ASC';
+      findSubtype = sub_type;
+    }
+    let colStr = 'score';
+    if(sub_type == 101){
+      colStr = 'paly_time';
     }
     const item = await user_game_data.findAll({
       where:{
         game_type:game_type,
-        sub_type:sub_type
+        sub_type:findSubtype
       },
-      order:[[sequelize.col('score'), orderStr]],
+      order:[[sequelize.col(colStr), orderStr]],
       limit:100
     }).catch(()=>{
       console.error("error")

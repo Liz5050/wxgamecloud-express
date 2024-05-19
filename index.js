@@ -74,7 +74,7 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?",async (req,res) =>{
     }
     let colStr = 'score';
     if(sub_type == 101){
-      colStr = 'paly_time';
+      colStr = 'play_time';
     }
     const item = await user_game_data.findAll({
       where:{

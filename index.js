@@ -227,6 +227,10 @@ app.post("/api/user_game_data",async (req,res) =>{
         res.send({code:0,data:item});
       }
       else{
+        item[0].set({
+          nick_name:filterEmojiName,
+          avatar_url:avatarUrl,
+        });
         await item[0].save();
         res.send({code:0,data:"未刷新记录"});
       }

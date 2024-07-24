@@ -124,8 +124,8 @@ app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
 
 //保存玩家游戏积分（货币）
 async function addUserScore(openid, score, nickName) {
-  const user_data_item = await user_data
-    .findAll({
+  let user_data_item = await user_data
+    .findOne({
       where: {
         openid: openid,
       },
@@ -133,14 +133,14 @@ async function addUserScore(openid, score, nickName) {
     .catch(() => {
       console.error("user_data error---------");
     });
-  if (user_data_item && user_data_item.length > 0) {
-    let curScore = user_data_item[0].score;
+  if (user_data_item) {
+    let curScore = user_data_item.score;
     curScore += score;
-    user_data_item[0].score = curScore;
+    user_data_item.score = curScore;
     if (nickName && nickName != "") {
-      user_data_item[0].nick_name = nickName;
+      user_data_item.nick_name = nickName;
     }
-    await user_data_item[0].save();
+    await user_data_item.save();
     return curScore;
     // console.log("保存当前积分：",curScore)
   } else {
@@ -192,7 +192,7 @@ app.post("/api/user_game_data", async (req, res) => {
         return;
       }
     }
-    const item = await user_game_data.findAll({
+    const item = await user_game_data.findOne({
       where: {
         openid: openid,
         game_type: game_data.game_type,
@@ -201,13 +201,13 @@ app.post("/api/user_game_data", async (req, res) => {
     });
     let existData = item && item.length > 0;
     if (!user_info && existData) {
-      if (item[0].avatar_url && item[0].avatar_url != "") {
+      if (item.avatar_url && item.avatar_url != "") {
         //兼容已授权用户，后面又取消授权，取以前保存的旧数据显示
-        console.log(filterEmojiName + item[0].id);
-        filterEmojiName = item[0].nick_name;
-        avatarUrl = item[0].avatar_url;
+        console.log(filterEmojiName + item.id);
+        filterEmojiName = item.nick_name;
+        avatarUrl = item.avatar_url;
       } else {
-        filterEmojiName = filterEmojiName + item[0].id;
+        filterEmojiName = filterEmojiName + item.id;
       }
     }
     if (game_data.game_type == 1002) {
@@ -218,28 +218,28 @@ app.post("/api/user_game_data", async (req, res) => {
       let newRecord = false;
       if (game_data.game_type == 1001) {
         //舒尔特挑战是按时间算，数值小的才算新记录
-        newRecord = item[0].score > score;
+        newRecord = item.score > score;
       } else {
-        newRecord = item[0].score < score;
+        newRecord = item.score < score;
       }
-      let playTime = item[0].play_time;
+      let playTime = item.play_time;
       playTime += game_data.add_play_time;
-      item[0].play_time = playTime;
+      item.play_time = playTime;
       if (newRecord) {
-        item[0].set({
+        item.set({
           score: score,
           record_time: game_data.record_time,
           nick_name: filterEmojiName,
           avatar_url: avatarUrl,
         });
-        await item[0].save();
+        await item.save();
         res.send({ code: 0, data: item });
       } else {
-        item[0].set({
+        item.set({
           nick_name: filterEmojiName,
           avatar_url: avatarUrl,
         });
-        await item[0].save();
+        await item.save();
         res.send({ code: 0, data: "未刷新记录" });
       }
     } else {
@@ -261,13 +261,13 @@ app.post("/api/user_game_data", async (req, res) => {
 app.get("/api/user_data", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const item = await user_data.findAll({
+    const item = await user_data.findOne({
       where: {
         openid: openid,
       },
     });
-    if (item && item.length > 0) {
-      res.send({ code: 0, data: item[0] });
+    if (item) {
+      res.send({ code: 0, data: item });
     } else {
       res.send({ code: -1, data: "暂无数据" });
     }
@@ -342,14 +342,14 @@ app.post("/api/use_grid_skin", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const { skin_id } = req.body;
     const openid = req.headers["x-wx-openid"];
-    const item = await user_data.findAll({
+    const item = await user_data.findOne({
       where: {
         openid: openid,
       },
     });
-    if (item && item.length > 0) {
-      item[0].skin_id = skin_id;
-      await item[0].save();
+    if (item) {
+      item.skin_id = skin_id;
+      await item.save();
       res.send({ code: 0, data: { skin_id: skin_id } });
     }
   } else {
@@ -375,13 +375,13 @@ function checkNextDay(time) {
 app.get("/api/share_score_reward", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const item = await share_rewards.findAll({
+    const item = await share_rewards.findOne({
       where: {
         openid: openid,
       },
     });
-    if (item && item.length > 0) {
-      let shareTime = item[0].share_time;
+    if (item) {
+      let shareTime = item.share_time;
       let hadGet = 1;
       if (checkNextDay(shareTime)) {
         //超过24小时，可继续领取
@@ -401,19 +401,19 @@ app.post("/api/share_score_reward", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     const nowTime = Math.floor(Date.now() / 1000);
-    const item = await share_rewards.findAll({
+    const item = await share_rewards.findOne({
       where: {
         openid: openid,
       },
     });
-    if (item && item.length > 0) {
-      let shareTime = item[0].share_time;
+    if (item) {
+      let shareTime = item.share_time;
       if (checkNextDay(shareTime)) {
         //可下发奖励
-        let count = item[0].share_count;
-        item[0].share_count = count + 1;
-        item[0].share_time = nowTime;
-        await item[0].save();
+        let count = item.share_count;
+        item.share_count = count + 1;
+        item.share_time = nowTime;
+        await item.save();
         await addUserScore(openid, 100);
         res.send({ code: 0, data: { score: 100 } });
       } else {
@@ -438,13 +438,13 @@ app.post("/api/game_grid_save", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
     const { jsonStr } = req.body;
-    const item = await game_grid_save_data.findAll({
+    const item = await game_grid_save_data.findOne({
       where: { openid: openid },
     });
     if (item && item.length > 0) {
-      item[0].data_str = jsonStr;
-      item[0].is_valid = 1;
-      await item[0].save();
+      item.data_str = jsonStr;
+      item.is_valid = 1;
+      await item.save();
       res.send({ code: 0, data: { result: "保存成功" } });
     } else {
       await game_grid_save_data.create({
@@ -460,15 +460,15 @@ app.post("/api/game_grid_save", async (req, res) => {
 app.get("/api/game_grid_save", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
-    const item = await game_grid_save_data.findAll({
+    const item = await game_grid_save_data.findOne({
       where: { openid: openid },
     });
-    if (item && item.length > 0) {
-      let jsonStr = item[0].data_str;
-      let is_valid = item[0].is_valid;
+    if (item) {
+      let jsonStr = item.data_str;
+      let is_valid = item.is_valid;
       if (is_valid == 1) {
-        item[0].is_valid = 0;
-        await item[0].save();
+        item.is_valid = 0;
+        await item.save();
         res.send({ code: 0, data: jsonStr });
       } else {
         res.send({ code: -1, data: "数据已失效" });

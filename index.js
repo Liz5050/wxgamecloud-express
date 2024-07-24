@@ -199,7 +199,7 @@ app.post("/api/user_game_data", async (req, res) => {
         sub_type: subType,
       },
     });
-    let existData = item && item.length > 0;
+    let existData = item;
     if (!user_info && existData) {
       if (item.avatar_url && item.avatar_url != "") {
         //兼容已授权用户，后面又取消授权，取以前保存的旧数据显示
@@ -441,7 +441,7 @@ app.post("/api/game_grid_save", async (req, res) => {
     const item = await game_grid_save_data.findOne({
       where: { openid: openid },
     });
-    if (item && item.length > 0) {
+    if (item) {
       item.data_str = jsonStr;
       item.is_valid = 1;
       await item.save();

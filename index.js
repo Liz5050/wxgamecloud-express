@@ -66,6 +66,24 @@ app.get("/api/wx_openid", async (req, res) => {
   }
 });
 
+var rankUpdateTime;
+function checkRankUpdate(intervalTime) {
+  let nowTime = Math.floor(Date.now() / 1000);
+  if(!rankUpdateTime){
+    rankUpdateTime = new Date();
+    rankUpdateTime.setTime(nowTime * 1000 + 28800000);
+    rankUpdateTime.setHours(0, 0, 0, 0);
+  }
+  let lastTime = Math.floor(rankUpdateTime.getTime() / 1000) - 28800; //东八区，减8小时才是0点;
+  if(nowTime - lastTime >= intervalTime) {
+    rankUpdateTime.setTime(nowTime * 1000 + 28800000);
+    rankUpdateTime.setHours(0, 0, 0, 0);
+    return true;
+  }
+  return false;
+}
+
+//#region 排行榜数据获取
 app.get("/api/all_user_game_data/:game_type?/:sub_type?", async (req, res) => {
   const game_type = req.params.game_type;
   const sub_type = req.params.sub_type;
@@ -100,6 +118,7 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?", async (req, res) => {
     }
   }
 });
+//#endregion
 
 app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
   const game_type = req.params.game_type;
@@ -122,6 +141,7 @@ app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
   }
 });
 
+//#region 保存游戏积分
 //保存玩家游戏积分（货币）
 async function addUserScore(openid, score, nickName) {
   let user_data_item = await user_data
@@ -155,7 +175,9 @@ async function addUserScore(openid, score, nickName) {
     // console.log("创建角色数据",game_data.score);
   }
 }
+//#endregion
 
+//#region 非法用户检查
 function checkIllegalUser(openid) {
   let illegalCfg = game_config.illegal.getByPk(openid);
   if (illegalCfg) {
@@ -163,6 +185,9 @@ function checkIllegalUser(openid) {
   }
   return false;
 }
+//#endregion
+
+//#region 保存游戏数据
 app.post("/api/user_game_data", async (req, res) => {
   const { game_data, user_info } = req.body;
   let nickName = "神秘玩家";
@@ -257,6 +282,7 @@ app.post("/api/user_game_data", async (req, res) => {
     }
   }
 });
+//#endregion
 
 app.get("/api/user_data", async (req, res) => {
   if (req.headers["x-wx-source"]) {
@@ -285,6 +311,7 @@ app.post("/api/add_score_coin", async (req, res) => {
   }
 });
 
+//#region 兑换皮肤
 //兑换皮肤
 app.post("/api/buy_skin", async (req, res) => {
   if (req.headers["x-wx-source"]) {
@@ -337,7 +364,9 @@ app.post("/api/buy_skin", async (req, res) => {
     }
   }
 });
+//#endregion
 
+//#region 使用皮肤
 app.post("/api/use_grid_skin", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const { skin_id } = req.body;
@@ -356,7 +385,9 @@ app.post("/api/use_grid_skin", async (req, res) => {
     res.send({ code: -1, data: "未登录授权" });
   }
 });
+//#endregion
 
+//#region 跨天检测
 //判断time 距离当前时间是否24小时以上了
 var checkDate = new Date();
 function checkNextDay(time) {
@@ -369,8 +400,9 @@ function checkNextDay(time) {
   //判断是否跨天 24*60*60
   return nowTime - lastTime >= 86400;
 }
+//#endregion
 
-//分享奖励
+//#region分享奖励
 // 获取领奖状态
 app.get("/api/share_score_reward", async (req, res) => {
   if (req.headers["x-wx-source"]) {
@@ -433,7 +465,9 @@ app.post("/api/share_score_reward", async (req, res) => {
     res.send({ code: -1, data: "未登录授权" });
   }
 });
+//#endregion
 
+//#region 游戏进度保存
 app.post("/api/game_grid_save", async (req, res) => {
   if (req.headers["x-wx-source"]) {
     const openid = req.headers["x-wx-openid"];
@@ -478,8 +512,106 @@ app.get("/api/game_grid_save", async (req, res) => {
     }
   }
 });
+//#endregion
 
 const port = process.env.PORT || 80;
+
+//#region 初始化玩家数据到内存
+var userAllData = {};
+var rankListData = {};
+var loopCount = 0;
+function initRankData(num){
+  let offset = num * 1000;
+  loopCount ++;
+  if(loopCount >= 1000){
+    return;
+  }
+  user_game_data.findAll({offset: offset,limit: 1000}).then((items)=>{
+    console.log("findAll callback",items);
+    if(!items || items.length < 1000){
+      console.log("rank list init complete");
+      loopCount = 9999;
+      return;
+    }
+    for(let i = 0; i < items.length; i++){
+      let itemData = items[i];
+      let key = itemData.game_type + "_" + itemData.sub_type;
+      let list = userAllData[key];
+      if(!list){
+        list = [];
+        userAllData[key] = list;
+      }
+      list.push(itemData);
+    }
+    let findNum = num + 1;
+    initRankData(findNum);
+  });
+}
+//#endregion
+
+//#region 堆排序
+function heapify(arr, n, i, order) {
+  let largest = i;
+  let left = 2 * i + 1;
+  let right = 2 * i + 2;
+
+  if (left < n && compare(arr[left], arr[largest], order) === 1) {
+      largest = left;
+  }
+
+  if (right < n && compare(arr[right], arr[largest], order) === 1) {
+      largest = right;
+  }
+
+  if (largest != i) {
+      let swap = arr[i];
+      arr[i] = arr[largest];
+      arr[largest] = swap;
+
+      heapify(arr, n, largest, order);
+  }
+}
+
+function heapSort(arr, order) {
+  let n = arr.length;
+
+  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+      heapify(arr, n, i, order);
+  }
+
+  for (let i = n - 1; i > 0; i--) {
+      let temp = arr[0];
+      arr[0] = arr[i];
+      arr[i] = temp;
+
+      heapify(arr, i, 0, order);
+  }
+}
+
+function compare(a, b, order) {
+  if (order === 'asc') {
+      return a.score > b.score ? 1 : (a.score < b.score ? -1 : 0);
+  } else {
+      return a.score < b.score ? 1 : (a.score > b.score ? -1 : 0);
+  }
+}
+//#endregion
+
+app.get("/api/get_rank_data", async (req, res) => {
+  initRankData(0);
+  for(let key in userAllData){
+    let list = userAllData[key];
+    if(list && list.length > 0){
+      let order = "desc";
+      if(list[0].game_type == 1001){
+        order = "asc";
+      }
+      heapSort(list,order);
+      rankListData[key] = list.slice(0,100);
+    }
+  }
+  res.send({ code: 0, data: rankListData });
+});
 
 async function bootstrap() {
   await initUserDB();

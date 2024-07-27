@@ -50,6 +50,7 @@ function initRankData(num){
   user_game_data.findAll({offset: offset,limit: 1000}).then((items)=>{
     if(!items || items.length < 1000){
       console.log("rank list init complete loopCount:" + loopCount);
+      getAllRankList();
       loopCount = 9999;
       return;
     }
@@ -69,7 +70,6 @@ function initRankData(num){
 }
 
 function getAllRankList(){
-  initRankData(0);
   for(let key in userAllData){
     let list = userAllData[key];
     if(list && list.length > 0){
@@ -79,8 +79,9 @@ function getAllRankList(){
       }
       if(list[0].game_type == 1002){
         //消消乐游戏时长排序
-        heapSort(list,order,"play_time");
-        playTimeRanks = list.slice(0,100);
+        let playTimeList = list.slice();
+        heapSort(playTimeList,order,"play_time");
+        playTimeRanks = playTimeList.slice(0,100);
       }
       heapSort(list,order,"score");
       rankListData[key] = list.slice(0,100);
@@ -129,9 +130,9 @@ function heapSort(arr, order,targetName = "score") {
 
 function compare(a, b, order) {
   if (order === 'asc') {
-      return a > b ? 1 : (a < b ? -1 : 0);
+      return a - b;//从小到大
   } else {
-      return a < b ? 1 : (a > b ? -1 : 0);
+      return b - a;//从大到小
   }
 }
 //#endregion
@@ -634,7 +635,7 @@ async function bootstrap() {
   await initGameGridSave();
   app.listen(port, () => {
     console.log("启动成功", port);
-    getAllRankList();
+    initRankData(0);
   });
 }
 

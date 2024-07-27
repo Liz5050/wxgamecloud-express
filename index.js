@@ -37,7 +37,7 @@ app.get("/", async (req, res) => {
 
 //#region 初始化玩家数据到内存
 var userAllData = {};
-var rankListData;
+var rankListData = {};
 var playTimeRanks = [];
 var loopCount = 0;
 function initRankData(num){
@@ -69,11 +69,6 @@ function initRankData(num){
 }
 
 function getAllRankList(){
-  if(rankListData) {
-    console.log("排名数据已经初始化");
-    return;
-  }
-  rankListData = {};
   initRankData(0);
   for(let key in userAllData){
     let list = userAllData[key];
@@ -87,7 +82,7 @@ function getAllRankList(){
         heapSort(list,order,"play_time");
         playTimeRanks = list.slice(0,100);
       }
-      heapSort(list,order);
+      heapSort(list,order,"score");
       rankListData[key] = list.slice(0,100);
     }
   }
@@ -389,7 +384,7 @@ function updateRank(data){
     }
   }
   if(order && order != "") {
-    heapSort(list,order);
+    heapSort(list,order,score);
   }
 }
 //#endregion

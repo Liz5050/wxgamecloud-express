@@ -110,7 +110,7 @@ function heapify(arr, n, i, order,targetName = "score") {
       arr[i] = arr[largest];
       arr[largest] = swap;
 
-      heapify(arr, n, largest, order);
+      heapify(arr, n, largest, order,targetName);
   }
 }
 

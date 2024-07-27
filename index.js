@@ -131,10 +131,10 @@ function heapSort(arr, order,targetName = "score") {
 
 function compare(a, b, order) {
   if (order === 'asc') {
-      return a - b;//从小到大
-  } else {
-      return b - a;//从大到小
-  }
+    return a > b ? 1 : (a < b ? -1 : 0);//从小到大
+} else {
+    return a < b ? 1 : (a > b ? -1 : 0);//从大到小
+}
 }
 //#endregion
 

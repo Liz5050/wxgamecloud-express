@@ -334,6 +334,7 @@ app.post("/api/user_game_data", async (req, res) => {
           avatar_url: avatarUrl,
         });
         await item.save();
+        updatePlayTimeRank(item);
         res.send({ code: 0, data: "未刷新记录" });
       }
     } else {
@@ -376,17 +377,21 @@ function updateRank(data){
       list[list.length - 1] = data;
       order = "desc";//默认从大到小排序
     }
-    if(data.game_type == 1002 && playTimeRanks && playTimeRanks.length > 0){
-      let temp = playTimeRanks[playTimeRanks.length - 1];
-      if(temp.play_time < data.play_time){
-        //消消乐游玩时间更长，替换排名
-        playTimeRanks[playTimeRanks.length - 1] = data;
-        heapSort(playTimeRanks,"desc","play_time");
-      }
-    }
+    updatePlayTimeRank(data);
   }
   if(order && order != "") {
     heapSort(list,order,score);
+  }
+}
+
+function updatePlayTimeRank(data){
+  if(data.game_type == 1002 && playTimeRanks && playTimeRanks.length > 0){
+    let temp = playTimeRanks[playTimeRanks.length - 1];
+    if(temp.play_time < data.play_time){
+      //消消乐游玩时间更长，替换排名
+      playTimeRanks[playTimeRanks.length - 1] = data;
+      heapSort(playTimeRanks,"desc","play_time");
+    }
   }
 }
 //#endregion

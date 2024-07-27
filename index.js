@@ -47,8 +47,9 @@ function initRankData(num){
     console.log("排名数据已经初始化" + loopCount);
     return;
   }
-  user_game_data.findAll({offset: offset,limit: 1000}).then((items)=>{
-    if(!items || items.length < 1000){
+  user_game_data.findAndCountAll({offset: offset,limit: 1000}).then((result)=>{
+    let items = result.rows;
+    if(offset + 1000 >= result.count){
       console.log("rank list init complete loopCount:" + loopCount);
       getAllRankList();
       loopCount = 9999;

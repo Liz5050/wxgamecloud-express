@@ -87,34 +87,23 @@ function checkRankUpdate(intervalTime) {
 app.get("/api/all_user_game_data/:game_type?/:sub_type?", async (req, res) => {
   const game_type = req.params.game_type;
   const sub_type = req.params.sub_type;
-  // console.log("获取所有玩家的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
   if (game_type) {
-    let orderStr = "DESC";
-    let findSubtype = 0;
-    if (game_type == 1001) {
-      orderStr = "ASC";
-      findSubtype = sub_type;
-    }
-    let colStr = "score";
+    let rankList;
     if (sub_type == 101) {
-      colStr = "play_time";
+      rankList = playTimeRanks;
     }
-    const item = await user_game_data
-      .findAll({
-        where: {
-          game_type: game_type,
-          sub_type: findSubtype,
-        },
-        order: [[sequelize.col(colStr), orderStr]],
-        limit: 100,
-      })
-      .catch(() => {
-        console.error("error");
-      });
-    if (item && item.length > 0) {
-      res.send({ code: 0, data: item });
+    else{
+      let findSubtype = 0;
+      if (game_type == 1001) {
+        findSubtype = sub_type;
+      }
+      let key = game_type + "_" + findSubtype;
+      rankList = rankListData[key];
+    }
+    if (rankList && rankList.length > 0) {
+      res.send({ code: 0, data: rankList });
     } else {
-      res.send({ code: 0, data: "查询失败" });
+      res.send({ code: 0, data: "排名数据未初始化" });
     }
   }
 });
@@ -258,6 +247,7 @@ app.post("/api/user_game_data", async (req, res) => {
           avatar_url: avatarUrl,
         });
         await item.save();
+        updateRank(item);
         res.send({ code: 0, data: item });
       } else {
         item.set({
@@ -278,10 +268,48 @@ app.post("/api/user_game_data", async (req, res) => {
         avatar_url: avatarUrl,
         record_time: game_data.record_time,
       });
+      updateRank(ugameData);
       res.send({ code: 0, data: ugameData });
     }
   }
 });
+
+function updateRank(data){
+  if(!data || !rankListData) return;
+  let key = data.game_type + "_" + data.sub_type;
+  let list = rankListData[key];
+  if(!list) {
+    list = [data];
+    rankListData[key] = list;
+  }
+  let lastRank = list[list.length - 1];
+  let order = "";
+  if(data.game_type == 1001) {
+    if(data.score < lastRank.score){
+      order = "asc";//舒尔特，从小到大
+      //用时更短
+      list[list.length - 1] = data;
+    }
+  }
+  else{
+    if(data.score > lastRank.score){
+      //得分更多
+      list[list.length - 1] = data;
+      order = "desc";//默认从大到小排序
+    }
+    if(data.game_type == 1002 && playTimeRanks && playTimeRanks.length > 0){
+      let temp = playTimeRanks[playTimeRanks.length - 1];
+      if(temp.play_time < data.play_time){
+        //消消乐游玩时间更长，替换排名
+        playTimeRanks[playTimeRanks.length - 1] = data;
+        heapSort(playTimeRanks,"desc","play_time");
+      }
+    }
+  }
+  if(order && order != "") {
+    heapSort(list,order);
+  }
+}
 //#endregion
 
 app.get("/api/user_data", async (req, res) => {
@@ -518,18 +546,19 @@ const port = process.env.PORT || 80;
 
 //#region 初始化玩家数据到内存
 var userAllData = {};
-var rankListData = {};
+var rankListData;
+var playTimeRanks = [];
 var loopCount = 0;
 function initRankData(num){
   let offset = num * 1000;
   loopCount ++;
   if(loopCount >= 1000){
+    console.log("排名数据已经初始化" + loopCount);
     return;
   }
   user_game_data.findAll({offset: offset,limit: 1000}).then((items)=>{
-    console.log("findAll callback",items);
     if(!items || items.length < 1000){
-      console.log("rank list init complete");
+      console.log("rank list init complete loopCount:" + loopCount);
       loopCount = 9999;
       return;
     }
@@ -547,19 +576,44 @@ function initRankData(num){
     initRankData(findNum);
   });
 }
+
+function getAllRankList(){
+  if(rankListData) {
+    console.log("排名数据已经初始化");
+    return;
+  }
+  rankListData = {};
+  initRankData(0);
+  for(let key in userAllData){
+    let list = userAllData[key];
+    if(list && list.length > 0){
+      let order = "desc";
+      if(list[0].game_type == 1001){
+        order = "asc";
+      }
+      if(list[0].game_type == 1002){
+        //消消乐游戏时长排序
+        heapSort(list,order,"play_time");
+        playTimeRanks = list.slice(0,100);
+      }
+      heapSort(list,order);
+      rankListData[key] = list.slice(0,100);
+    }
+  }
+}
 //#endregion
 
 //#region 堆排序
-function heapify(arr, n, i, order) {
+function heapify(arr, n, i, order,targetName = "score") {
   let largest = i;
   let left = 2 * i + 1;
   let right = 2 * i + 2;
 
-  if (left < n && compare(arr[left], arr[largest], order) === 1) {
+  if (left < n && compare(arr[left][targetName], arr[largest][targetName], order) === 1) {
       largest = left;
   }
 
-  if (right < n && compare(arr[right], arr[largest], order) === 1) {
+  if (right < n && compare(arr[right][targetName], arr[largest][targetName], order) === 1) {
       largest = right;
   }
 
@@ -572,11 +626,10 @@ function heapify(arr, n, i, order) {
   }
 }
 
-function heapSort(arr, order) {
+function heapSort(arr, order,targetName = "score") {
   let n = arr.length;
-
   for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
-      heapify(arr, n, i, order);
+      heapify(arr, n, i, order,targetName);
   }
 
   for (let i = n - 1; i > 0; i--) {
@@ -584,34 +637,25 @@ function heapSort(arr, order) {
       arr[0] = arr[i];
       arr[i] = temp;
 
-      heapify(arr, i, 0, order);
+      heapify(arr, i, 0, order,targetName);
   }
 }
 
 function compare(a, b, order) {
   if (order === 'asc') {
-      return a.score > b.score ? 1 : (a.score < b.score ? -1 : 0);
+      return a > b ? 1 : (a < b ? -1 : 0);
   } else {
-      return a.score < b.score ? 1 : (a.score > b.score ? -1 : 0);
+      return a < b ? 1 : (a > b ? -1 : 0);
   }
 }
 //#endregion
 
+//#region 测试
 app.get("/api/get_rank_data", async (req, res) => {
-  initRankData(0);
-  for(let key in userAllData){
-    let list = userAllData[key];
-    if(list && list.length > 0){
-      let order = "desc";
-      if(list[0].game_type == 1001){
-        order = "asc";
-      }
-      heapSort(list,order);
-      rankListData[key] = list.slice(0,100);
-    }
-  }
+  getAllRankList();
   res.send({ code: 0, data: rankListData });
 });
+//#endregion
 
 async function bootstrap() {
   await initUserDB();
@@ -620,6 +664,7 @@ async function bootstrap() {
   await initGameGridSave();
   app.listen(port, () => {
     console.log("启动成功", port);
+    getAllRankList();
   });
 }
 

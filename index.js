@@ -380,7 +380,7 @@ function updateRank(data){
     updatePlayTimeRank(data);
   }
   if(order && order != "") {
-    heapSort(list,order,score);
+    heapSort(list,order,"score");
   }
 }
 

@@ -71,6 +71,10 @@ function initRankData(num){
 }
 
 function getAllRankList(){
+  if(!userAllData) {
+    console.log("userAllData内存已清理");
+    return;
+  }
   for(let key in userAllData){
     let list = userAllData[key];
     if(list && list.length > 0){
@@ -88,6 +92,7 @@ function getAllRankList(){
       rankListData[key] = list.slice(0,100);
     }
   }
+  userAllData = null;
 }
 //#endregion
 

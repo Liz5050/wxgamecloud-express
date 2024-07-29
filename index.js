@@ -98,12 +98,13 @@ function getAllRankList(){
         }
       }
       heapSort(list,order,"score");
-      rankListData[key] = list.slice(0,100);
+      let newList = list.slice(0,100);
+      rankListData[key] = newList;
       let map = {};
       rankMap[key] = map;
-      for(let i = 0; i < len; i++){
-        let openid = rankListData[i].openid;
-        if(!map[openid]) map[openid] = rankListData[i];
+      for(let i = 0; i < newList.length; i++){
+        let openid = newList[i].openid;
+        if(!map[openid]) map[openid] = newList[i];
       }
     }
   }

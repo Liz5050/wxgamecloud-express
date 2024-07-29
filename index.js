@@ -38,7 +38,9 @@ app.get("/", async (req, res) => {
 //#region 初始化玩家数据到内存
 var userAllData = {};
 var rankListData = {};
+var rankMap = {};
 var playTimeRanks = [];
+var playTimeRankMap = {};
 var loopCount = 0;
 function initRankData(num){
   let offset = num * 1000;
@@ -77,7 +79,10 @@ function getAllRankList(){
   }
   for(let key in userAllData){
     let list = userAllData[key];
-    if(list && list.length > 0){
+    if(list){
+      let len = list.length;
+      if(!len) continue;
+
       let order = "desc";
       if(list[0].game_type == 1001){
         order = "asc";
@@ -87,9 +92,19 @@ function getAllRankList(){
         let playTimeList = list.slice();
         heapSort(playTimeList,order,"play_time");
         playTimeRanks = playTimeList.slice(0,100);
+        for(let i = 0; i < playTimeRanks.length; i++){
+          let openid = playTimeRanks[i].openid;
+          if(!playTimeRankMap[openid]) playTimeRankMap[openid] = playTimeRanks[i];
+        }
       }
       heapSort(list,order,"score");
       rankListData[key] = list.slice(0,100);
+      let map = {};
+      rankMap[key] = map;
+      for(let i = 0; i < len; i++){
+        let openid = rankListData[i].openid;
+        if(!map[openid]) map[openid] = rankListData[i];
+      }
     }
   }
   userAllData = null;
@@ -363,26 +378,51 @@ function updateRank(data){
   if(!data || !rankListData) return;
   let key = data.game_type + "_" + data.sub_type;
   let list = rankListData[key];
+  let lastRank;
+  let order = "";
+  let map = rankMap[key];
   if(!list) {
     list = [data];
     rankListData[key] = list;
-  }
-  let lastRank = list[list.length - 1];
-  let order = "";
-  if(data.game_type == 1001) {
-    if(data.score < lastRank.score){
-      order = "asc";//舒尔特，从小到大
-      //用时更短
-      list[list.length - 1] = data;
-    }
+    map = {};
+    map[data.openid] = data;
+    rankMap[key] = map;
   }
   else{
-    if(data.score > lastRank.score){
-      //得分更多
-      list[list.length - 1] = data;
-      order = "desc";//默认从大到小排序
+    lastRank = map[data.openid];
+  }
+  if(lastRank){
+    //已经在榜上
+    lastRank.score = data.score;
+    if(data.game_type == 1001) {
+      order = "asc";
     }
-    updatePlayTimeRank(data);
+    else {
+      order = "desc";
+      updatePlayTimeRank(data);
+    }
+  }
+  else {
+    lastRank = list[list.length - 1];
+    if(data.game_type == 1001) {
+      if(data.score < lastRank.score){
+        order = "asc";//舒尔特，从小到大
+        //用时更短
+        delete map[lastRank.openid];
+        list[list.length - 1] = data;
+        map[data.openid] = data;
+      }
+    }
+    else{
+      if(data.score > lastRank.score){
+        order = "desc";//默认从大到小排序
+        //得分更多
+        delete map[lastRank.openid];
+        list[list.length - 1] = data;
+        map[data.openid] = data;
+      }
+      updatePlayTimeRank(data);
+    }
   }
   if(order && order != "") {
     heapSort(list,order,"score");
@@ -391,11 +431,20 @@ function updateRank(data){
 
 function updatePlayTimeRank(data){
   if(data.game_type == 1002 && playTimeRanks && playTimeRanks.length > 0){
-    let temp = playTimeRanks[playTimeRanks.length - 1];
-    if(temp.play_time < data.play_time){
-      //消消乐游玩时间更长，替换排名
-      playTimeRanks[playTimeRanks.length - 1] = data;
+    let temp = playTimeRankMap[data.openid];
+    if(temp){
+      temp.play_time = data.play_time;
       heapSort(playTimeRanks,"desc","play_time");
+    }
+    else{
+      temp = playTimeRanks[playTimeRanks.length - 1];
+      if(temp.play_time < data.play_time){
+        //消消乐游玩时间更长，替换排名
+        delete playTimeRankMap[temp.openid];
+        playTimeRanks[playTimeRanks.length - 1] = data;
+        playTimeRankMap[data.openid] = data;
+        heapSort(playTimeRanks,"desc","play_time");
+      }
     }
   }
 }

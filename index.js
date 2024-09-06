@@ -8,8 +8,6 @@ const {
   game_grid_save_data,
 } = require("./module/gameGrid/GameGridSaveDB");
 const {
-  // init: initDB,
-  // Counter,
   initUser_game_data: initUserDB,
   user_game_data,
   initUser_data,

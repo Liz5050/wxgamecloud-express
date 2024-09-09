@@ -44,7 +44,7 @@ function initRankData(num) {
 	let offset = num * 1000;
 	loopCount++;
 	if (loopCount >= 1000) {
-		console.log("排名数据已经初始化" + loopCount);
+		console.log("排名数据已初始化" + loopCount);
 		return;
 	}
 	user_game_data.findAndCountAll({ offset: offset, limit: 1000 }).then((result) => {

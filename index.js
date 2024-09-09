@@ -49,12 +49,6 @@ function initRankData(num){
   }
   user_game_data.findAndCountAll({offset: offset,limit: 1000}).then((result)=>{
     let items = result.rows;
-    if(offset + 1000 >= result.count){
-      console.log("rank list init complete loopCount:" + loopCount);
-      getAllRankList();
-      loopCount = 9999;
-      return;
-    }
     for(let i = 0; i < items.length; i++){
       let itemData = items[i];
       let key = itemData.game_type + "_" + itemData.sub_type;
@@ -64,6 +58,12 @@ function initRankData(num){
         userAllData[key] = list;
       }
       list.push(itemData);
+    }
+    if(offset + 1000 >= result.count){
+      console.log("rank list init complete loopCount:" + loopCount);
+      getAllRankList();
+      loopCount = 9999;
+      return;
     }
     let findNum = num + 1;
     initRankData(findNum);

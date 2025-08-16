@@ -33,7 +33,7 @@ app.get("/", async (req, res) => {
 });
 
 
-//#region 初始化玩家数据到内存
+//#region 初始化玩家数据到内存。
 var userAllData = {};
 var rankListData = {};
 var rankMap = {};

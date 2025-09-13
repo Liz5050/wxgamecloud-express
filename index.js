@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const game_config = require("./config/game_config");
+const DatabaseCleaner = require('./databaseCleaner');
 const {
 	initGameGridSave,
 	game_grid_save_data,
@@ -765,9 +766,87 @@ async function bootstrap() {
 	await initUser_data();
 	await initShare_rewards();
 	await initGameGridSave();
+	
+	// 初始化数据库清理系统
+	const dbCleaner = new DatabaseCleaner(sequelize, {
+		user_game_data,
+		user_data,
+		share_rewards
+	});
+	
+	// 启动定时清理任务（每天凌晨2点执行）
+	dbCleaner.startScheduledCleanup();
+	
+	// 添加清理状态查询接口
+	app.get("/api/db_cleanup_status", async (req, res) => {
+		try {
+			const stats = dbCleaner.getStats();
+			const tableSizes = await dbCleaner.checkTableSizes();
+			
+			res.send({ 
+				code: 0, 
+				data: { 
+					stats, 
+					tableSizes,
+					serverPerformance: {
+						memoryUsage: process.memoryUsage(),
+						uptime: process.uptime()
+					}
+				} 
+			});
+		} catch (error) {
+			console.error('获取清理状态错误:', error);
+			res.send({ code: -1, data: "获取失败" });
+		}
+	});
+	
+	// 清理记录查询接口
+	app.get("/api/db_cleanup_logs", async (req, res) => {
+		try {
+			const limit = parseInt(req.query.limit) || 20;
+			const offset = parseInt(req.query.offset) || 0;
+			
+			const logs = dbCleaner.getCleanupLogs(limit, offset);
+			
+			res.send({ 
+				code: 0, 
+				data: logs
+			});
+		} catch (error) {
+			console.error('获取清理记录错误:', error);
+			res.send({ code: -1, data: "获取失败" });
+		}
+	});
+	
+	// 手动触发清理接口（需要权限验证）
+	app.post("/api/manual_cleanup", async (req, res) => {
+		try {
+			// 简单的权限验证（实际生产环境应该更严格）
+			if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) {
+				return res.send({ code: -1, data: "权限不足" });
+			}
+			
+			const cleaned = await dbCleaner.cleanupZombieUsers();
+			const archived = await dbCleaner.archiveOldData();
+			
+			res.send({ 
+				code: 0, 
+				data: { 
+					cleaned, 
+					archived,
+					message: `手动清理完成，删除 ${cleaned} 条数据，归档 ${archived} 个表`
+				} 
+			});
+		} catch (error) {
+			console.error('手动清理错误:', error);
+			res.send({ code: -1, data: "清理失败" });
+		}
+	});
+	
 	app.listen(port, () => {
 		console.log("启动成功", port);
 		console.log("内存优化版本已启用 - 使用数据库查询替代内存存储");
+		console.log("✅ 数据库自动清理系统已启动 - 每天凌晨2点执行");
 	});
 }
 

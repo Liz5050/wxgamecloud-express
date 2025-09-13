@@ -45,6 +45,11 @@ const sequelize = new Sequelize(MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD, 
 // }
 
 const user_game_data = sequelize.define("user_game_data", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
   openid: {
     type: DataTypes.STRING,
     defaultValue: "",
@@ -124,6 +129,11 @@ async function initUser_data() {
 }
 
 const share_rewards = sequelize.define("share_rewards", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
   openid: {
     type: DataTypes.STRING,
     defaultValue: "",

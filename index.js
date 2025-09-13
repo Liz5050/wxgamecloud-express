@@ -321,8 +321,9 @@ async function addUserScore(openid, score, nickName) {
 			.findOne({
 				where: { openid: openid },
 			})
-			.catch(() => {
-				console.error("user_data error---------");
+			.catch((error) => {
+				console.error("查询user_data表失败:", error);
+				throw error; // 重新抛出错误，避免继续执行
 			});
 
 		if (user_data_item) {
@@ -822,12 +823,13 @@ async function bootstrap() {
 	app.post("/api/manual_cleanup", async (req, res) => {
 		try {
 			// 简单的权限验证（实际生产环境应该更严格）
-			if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) {
-				return res.send({ code: -1, data: "权限不足" });
-			}
-			
-			const cleaned = await dbCleaner.cleanupZombieUsers();
-			const archived = await dbCleaner.archiveOldData();
+		if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) {
+			return res.send({ code: -1, data: "权限不足" });
+		}
+		
+		// 手动调用时强制清理，忽略阈值检查
+		const cleaned = await dbCleaner.cleanupZombieUsers({ force: true });
+		const archived = await dbCleaner.archiveOldData();
 			
 			res.send({ 
 				code: 0, 

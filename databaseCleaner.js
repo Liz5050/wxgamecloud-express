@@ -190,11 +190,21 @@ class DatabaseCleaner {
         }
     }
     
-    // 清理僵尸用户数据（性能优化版）
-    async cleanupZombieUsers() {
+    // 清理僵尸用户数据（性能优化版）- 增加数量条件保护
+    async cleanupZombieUsers(options = {}) {
         console.log('🚀 开始清理僵尸用户数据...');
         
         try {
+            // 首先检查user_data表是否达到阈值
+            const tableSizes = await this.checkTableSizes();
+            const userDataInfo = tableSizes.user_data;
+            
+            // 如果user_data表数量未达到阈值，且不是手动调用（force=true），则不执行清理
+            if (userDataInfo && !userDataInfo.exceeded && !options.force) {
+                console.log(`✅ user_data表当前数量 ${userDataInfo.current}/${userDataInfo.max}，未达到阈值，跳过清理`);
+                return 0;
+            }
+            
             const zombieUsers = await this.getZombieUsers();
             console.log(`发现 ${zombieUsers.length} 个僵尸用户`);
             
@@ -432,7 +442,7 @@ class DatabaseCleaner {
         // 每天凌晨2点执行清理
         setInterval(async () => {
             try {
-                await this.cleanupZombieUsers();
+                await this.cleanupZombieUsers({ force: false }); // 自动调用，不强制清理
                 await this.archiveOldData();
                 
                 // 记录性能指标
@@ -450,7 +460,7 @@ class DatabaseCleaner {
         
         // 立即执行一次
         setTimeout(() => {
-            this.cleanupZombieUsers().catch(console.error);
+            this.cleanupZombieUsers({ force: false }).catch(console.error);
         }, 5000);
     }
 }

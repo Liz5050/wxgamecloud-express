@@ -1,6 +1,11 @@
 const { DataTypes } = require("sequelize");
 const {sequelize} = require("../../db.js");
 const game_grid_save_data = sequelize.define("game_grid_save_data", {
+	id: {
+		type: DataTypes.INTEGER,
+		primaryKey: true,
+		autoIncrement: true,
+	},
 	openid: {
 		type: DataTypes.STRING,
 		defaultValue: "",

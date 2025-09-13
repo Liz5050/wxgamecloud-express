@@ -1,14 +1,42 @@
-const { Sequelize, DataTypes } = require("sequelize");
+// 加载环境变量
+require('dotenv').config({ path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env' });
 
-// 从环境变量中读取数据库配置
-const { MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_ADDRESS = "" } = process.env;
+const { Sequelize, DataTypes, Op } = require("sequelize");
 
-const [host, port] = MYSQL_ADDRESS.split(":");
+// 从环境变量中读取数据库配置 - 微信云托管标准配置
+const { 
+  MYSQL_USERNAME = 'root', 
+  MYSQL_PASSWORD = '', 
+  MYSQL_ADDRESS = 'localhost:3306',
+  MYSQL_DATABASE = 'nodejs_demo'
+} = process.env;
 
-const sequelize = new Sequelize("nodejs_demo", MYSQL_USERNAME, MYSQL_PASSWORD, {
+// 安全解析地址
+let host = 'localhost';
+let port = 3306;
+
+if (MYSQL_ADDRESS && MYSQL_ADDRESS.includes(':')) {
+  [host, port] = MYSQL_ADDRESS.split(':');
+  port = parseInt(port) || 3306;
+} else if (MYSQL_ADDRESS) {
+  host = MYSQL_ADDRESS;
+}
+
+// 创建数据库连接，添加连接池配置优化性能
+const sequelize = new Sequelize(MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD, {
   host,
   port,
-  dialect: "mysql" /* one of 'mysql' | 'mariadb' | 'postgres' | 'mssql' */,
+  dialect: "mysql",
+  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
+  retry: {
+    max: 3
+  }
 });
 
 // // 数据库初始化方法
@@ -119,5 +147,6 @@ module.exports = {
   user_data,
   initShare_rewards,
   share_rewards,
-  sequelize
+  sequelize,
+  Op
 };

@@ -1,3 +1,6 @@
+// 加载环境变量
+require('dotenv').config({ path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env' });
+
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
@@ -15,13 +18,20 @@ const {
 	initShare_rewards,
 	share_rewards,
 	sequelize,
+	Op
 } = require("./db");
+const { PerformanceMonitor, createPerformanceMiddleware } = require('./performanceMonitor');
 
 const logger = morgan("tiny");
 const regStr =
 	"(?:[\uD83C\uDF00\uD83D\uDDFF\uD83E\uDD00\uDE00\uDE4F\uDE80\uDEFF\uDD71\uDD7E\uDD7F\uDD8E\uDD91\uDD9A\u20E3\u2194\u2199\u21A9\u21AA\u2B05\u2B07\u2B1B\u2B1C\u2B50\u2B55\u3299])";
 const regex = new RegExp(regStr, "g");
 var app = express();
+
+// 初始化性能监控
+const performanceMonitor = new PerformanceMonitor();
+app.use(createPerformanceMiddleware(performanceMonitor));
+
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cors());
@@ -32,85 +42,131 @@ app.get("/", async (req, res) => {
 	res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// 性能监控接口
+app.get("/api/performance", (req, res) => {
+	const report = performanceMonitor.getPerformanceReport();
+	res.send({ code: 0, data: report });
+});
 
-//#region 初始化玩家数据到内存。
-var userAllData = {};
-var rankListData = {};
-var rankMap = {};
-var playTimeRanks = [];
-var playTimeRankMap = {};
-var loopCount = 0;
-function initRankData(num) {
-	let offset = num * 1000;
-	loopCount++;
-	if (loopCount >= 1000) {
-		console.log("排名数据已初始化" + loopCount);
-		return;
+// 清理缓存接口
+app.post("/api/clear-cache", (req, res) => {
+	rankCache.clear();
+	cacheExpiry.clear();
+	console.log('🧹 清理排行榜缓存');
+	res.send({ code: 0, data: '缓存已清理' });
+});
+
+//#region 优化后的排行榜数据管理 - 使用数据库查询替代内存存储
+// 使用数据库查询替代内存存储，大幅减少内存占用
+var rankCache = new Map();
+var cacheExpiry = new Map();
+const CACHE_TTL = 30000; // 30秒缓存
+
+// 清空过期的缓存 - 安全的内存管理
+function cleanupExpiredCache() {
+	const now = Date.now();
+	let clearedCount = 0;
+	
+	for (const [key, expiry] of cacheExpiry.entries()) {
+		if (now > expiry) {
+			rankCache.delete(key);
+			cacheExpiry.delete(key);
+			clearedCount++;
+		}
 	}
-	user_game_data.findAndCountAll({ offset: offset, limit: 1000 }).then((result) => {
-		let items = result.rows;
-		for (let i = 0; i < items.length; i++) {
-			let itemData = items[i];
-			let key = itemData.game_type + "_" + itemData.sub_type;
-			let list = userAllData[key];
-			if (!list) {
-				list = [];
-				userAllData[key] = list;
-			}
-			list.push(itemData);
-		}
-		if (offset + 1000 >= result.count) {
-			console.log("rank list init complete loopCount:" + loopCount);
-			getAllRankList();
-			loopCount = 9999;
-			return;
-		}
-		let findNum = num + 1;
-		initRankData(findNum);
-	});
+	
+	// 如果缓存条目过多，强制清理最旧的50%以防止内存泄漏
+	if (rankCache.size > 1000) {
+		const keys = Array.from(rankCache.keys());
+		const keysToRemove = keys.slice(0, Math.floor(keys.length * 0.5));
+		
+		keysToRemove.forEach(key => {
+			rankCache.delete(key);
+			cacheExpiry.delete(key);
+		});
+		
+		console.log(`⚠️  缓存清理: 强制移除${keysToRemove.length}个旧缓存条目`);
+	}
+	
+	if (clearedCount > 0) {
+		console.log(`🧹 自动清理${clearedCount}个过期缓存条目`);
+	}
 }
 
-function getAllRankList() {
-	if (!userAllData) {
-		console.log("userAllData内存已清理");
-		return;
-	}
-	for (let key in userAllData) {
-		let list = userAllData[key];
-		if (list) {
-			let len = list.length;
-			if (!len) continue;
+// 每2分钟清理一次过期缓存（更频繁的清理）
+setInterval(cleanupExpiredCache, 120000);
 
-			let order = "desc";
-			if (list[0].game_type == 1001) {
-				order = "asc";
-			}
-			if (list[0].game_type == 1002) {
-				//消消乐游戏时长排序
-				let playTimeList = list.slice();
-				heapSort(playTimeList, order, "play_time");
-				playTimeRanks = playTimeList.slice(0, 100);
-				for (let i = 0; i < playTimeRanks.length; i++) {
-					let openid = playTimeRanks[i].openid;
-					if (!playTimeRankMap[openid]) playTimeRankMap[openid] = playTimeRanks[i];
-				}
-			}
-			heapSort(list, order, "score");
-			let newList = list.slice(0, 100);
-			rankListData[key] = newList;
-			let map = {};
-			rankMap[key] = map;
-			for (let i = 0; i < newList.length; i++) {
-				let openid = newList[i].openid;
-				if (!map[openid]) map[openid] = newList[i];
-			}
-		}
+// 获取排行榜数据 - 使用数据库查询和缓存
+async function getRankList(game_type, sub_type = 0) {
+	const cacheKey = `${game_type}_${sub_type}`;
+	const now = Date.now();
+	
+	// 检查缓存
+	if (rankCache.has(cacheKey) && cacheExpiry.get(cacheKey) > now) {
+		return rankCache.get(cacheKey);
 	}
-	userAllData = null;
+	
+	let order = 'DESC';
+	let targetName = 'score';
+	
+	if (game_type == 1001) {
+		order = 'ASC'; // 舒尔特挑战按时间升序
+	} else if (game_type == 1002 && sub_type == 101) {
+		targetName = 'play_time'; // 消消乐游戏时长
+	}
+	
+	try {
+		const result = await user_game_data.findAll({
+			where: { game_type, sub_type },
+			order: [[targetName, order]],
+			limit: 100,
+			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
+		});
+		
+		// 设置缓存
+		rankCache.set(cacheKey, result);
+		cacheExpiry.set(cacheKey, now + CACHE_TTL);
+		
+		return result;
+	} catch (error) {
+		console.error('获取排行榜数据失败:', error);
+		return [];
+	}
+}
+
+// 获取用户排名
+async function getUserRank(openid, game_type, sub_type = 0) {
+	try {
+		const result = await user_game_data.findOne({
+			where: { openid, game_type, sub_type },
+			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
+		});
+		
+		if (!result) return null;
+		
+		// 计算排名
+		const count = await user_game_data.count({
+			where: { 
+				game_type, 
+				sub_type,
+				score: game_type == 1001 ? 
+					{ [Op.lt]: result.score } : // 舒尔特挑战：分数越小排名越高
+					{ [Op.gt]: result.score }   // 其他游戏：分数越大排名越高
+			}
+		});
+		
+		return {
+			...result.toJSON(),
+			rank: count + 1
+		};
+	} catch (error) {
+		console.error('获取用户排名失败:', error);
+		return null;
+	}
 }
 //#endregion
 
-//#region 堆排序
+//#region 堆排序函数（保留但不再使用）
 function heapify(arr, n, i, order, targetName = "score") {
 	let largest = i;
 	let left = 2 * i + 1;
@@ -181,85 +237,100 @@ function checkRankUpdate(intervalTime) {
 	return false;
 }
 
-//#region 排行榜数据获取
+//#region 排行榜数据获取 - 优化为数据库查询
 app.get("/api/all_user_game_data/:game_type?/:sub_type?", async (req, res) => {
-	const game_type = req.params.game_type;
-	const sub_type = req.params.sub_type;
+	const game_type = parseInt(req.params.game_type);
+	const sub_type = parseInt(req.params.sub_type || 0);
+	
 	if (game_type) {
-		let rankList;
-		if (sub_type == 101) {
-			rankList = playTimeRanks;
-		}
-		else {
-			let findSubtype = 0;
-			if (game_type == 1001) {
-				findSubtype = sub_type;
+		try {
+			let rankList;
+			if (game_type == 1002 && sub_type == 101) {
+				// 消消乐游戏时长排行榜
+				rankList = await getRankList(game_type, sub_type);
+			} else {
+				// 其他排行榜
+				rankList = await getRankList(game_type, sub_type);
 			}
-			let key = game_type + "_" + findSubtype;
-			rankList = rankListData[key];
+			
+			if (rankList && rankList.length > 0) {
+				res.send({ code: 0, data: rankList });
+			} else {
+				res.send({ code: 0, data: [] });
+			}
+		} catch (error) {
+			console.error('获取排行榜数据错误:', error);
+			res.send({ code: -1, data: "服务器错误" });
 		}
-		if (rankList && rankList.length > 0) {
-			res.send({ code: 0, data: rankList });
-		} else {
-			res.send({ code: 0, data: "排名数据未初始化" });
-		}
+	} else {
+		res.send({ code: -1, data: "参数错误" });
 	}
 });
 //#endregion
 
 app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
-	const game_type = req.params.game_type;
-	const sub_type = req.params.sub_type;
-	// console.log("获取玩家自己的游戏数据game_type = " + game_type,"sub_type = " + sub_type);
+	const game_type = parseInt(req.params.game_type);
+	const sub_type = parseInt(req.params.sub_type || 0);
+	
 	if (game_type) {
 		const openid = req.headers["x-wx-openid"];
-		const item = await user_game_data.findAll({
-			where: {
-				openid: openid,
-				game_type: game_type,
-			},
-			limit: 100,
-		});
-		if (item && item.length > 0) {
-			res.send({ code: 0, data: item });
-		} else {
-			res.send({ code: 0, data: "查询失败" });
+		try {
+			const item = await user_game_data.findAll({
+				where: {
+					openid: openid,
+					game_type: game_type,
+					sub_type: sub_type
+				},
+				limit: 100,
+				attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
+			});
+			
+			if (item && item.length > 0) {
+				res.send({ code: 0, data: item });
+			} else {
+				res.send({ code: 0, data: [] });
+			}
+		} catch (error) {
+			console.error('查询用户游戏数据错误:', error);
+			res.send({ code: -1, data: "查询失败" });
 		}
 	}
 });
 
-//#region 保存游戏积分
-//保存玩家游戏积分（货币）
+//#region 保存玩家游戏积分（货币）
 async function addUserScore(openid, score, nickName) {
-	let user_data_item = await user_data
-		.findOne({
-			where: {
+	try {
+		let user_data_item = await user_data
+			.findOne({
+				where: { openid: openid },
+			})
+			.catch(() => {
+				console.error("user_data error---------");
+			});
+
+		if (user_data_item) {
+			let curScore = user_data_item.score;
+			curScore += score;
+			user_data_item.score = curScore;
+			if (nickName && nickName != "") {
+				user_data_item.nick_name = nickName;
+			}
+			await user_data_item.save();
+			return curScore;
+		} else {
+			await user_data.create({
 				openid: openid,
-			},
-		})
-		.catch(() => {
-			console.error("user_data error---------");
-		});
-	if (user_data_item) {
-		let curScore = user_data_item.score;
-		curScore += score;
-		user_data_item.score = curScore;
-		if (nickName && nickName != "") {
-			user_data_item.nick_name = nickName;
+				nick_name: nickName,
+				avatar_url: "",
+				score: score,
+				skin_id: 0,
+				skin_list: "",
+			});
+			return score;
 		}
-		await user_data_item.save();
-		return curScore;
-		// console.log("保存当前积分：",curScore)
-	} else {
-		await user_data.create({
-			openid: openid,
-			nick_name: nickName,
-			avatar_url: "",
-			score: score,
-			skin_id: 0,
-			skin_list: "",
-		});
-		// console.log("创建角色数据",game_data.score);
+	} catch (error) {
+		console.error('保存用户积分错误:', error);
+		throw error;
 	}
 }
 //#endregion
@@ -274,193 +345,135 @@ function checkIllegalUser(openid) {
 }
 //#endregion
 
-//#region 保存游戏数据
+//#region 保存游戏数据 - 优化数据库操作
 app.post("/api/user_game_data", async (req, res) => {
 	const { game_data, user_info } = req.body;
 	let nickName = "神秘玩家";
 	let avatarUrl = "";
 	let filterEmojiName = "神秘玩家";
+	
 	if (user_info) {
 		nickName = user_info.nickName;
 		avatarUrl = user_info.avatarUrl;
 		filterEmojiName = nickName.replace(regex, "");
 	}
+	
 	console.log(
 		"保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,
 		game_data,
 		user_info
 	);
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
-		let subType = game_data.sub_type;
+		let subType = game_data.sub_type || 0;
 		let score = game_data.score;
-		if (!subType) {
-			subType = 0;
-		}
-		if (game_data.game_type == 1001) {
-			if (checkIllegalUser(openid)) {
-				console.log("违规用户:" + nickName, game_data, user_info);
-				res.send({ code: -1, openid: openid });
-				return;
-			}
-		}
-		const item = await user_game_data.findOne({
-			where: {
-				openid: openid,
-				game_type: game_data.game_type,
-				sub_type: subType,
-			},
-		});
-		let existData = item;
-		if (!user_info && existData) {
-			if (item.avatar_url && item.avatar_url != "") {
-				//兼容已授权用户，后面又取消授权，取以前保存的旧数据显示
-				console.log(filterEmojiName + item.id);
-				filterEmojiName = item.nick_name;
-				avatarUrl = item.avatar_url;
-			} else {
-				filterEmojiName = filterEmojiName + item.id;
-			}
-		}
-		if (game_data.game_type == 1002) {
-			await addUserScore(openid, game_data.score, filterEmojiName);
-		}
-
-		if (existData) {
-			let newRecord = false;
+		
+		try {
 			if (game_data.game_type == 1001) {
-				//舒尔特挑战是按时间算，数值小的才算新记录
-				newRecord = item.score > score;
-			} else {
-				newRecord = item.score < score;
+				if (checkIllegalUser(openid)) {
+					console.log("违规用户:" + nickName, game_data, user_info);
+					res.send({ code: -1, openid: openid });
+					return;
+				}
 			}
-			let playTime = item.play_time;
-			playTime += game_data.add_play_time;
-			item.play_time = playTime;
-			if (newRecord) {
-				item.set({
-					score: score,
-					record_time: game_data.record_time,
-					nick_name: filterEmojiName,
-					avatar_url: avatarUrl,
+
+			// 使用事务确保数据一致性
+			const result = await sequelize.transaction(async (t) => {
+				const item = await user_game_data.findOne({
+					where: {
+						openid: openid,
+						game_type: game_data.game_type,
+						sub_type: subType,
+					},
+					transaction: t
 				});
-				await item.save();
-				updateRank(item);
-				res.send({ code: 0, data: item });
-			} else {
-				item.set({
-					nick_name: filterEmojiName,
-					avatar_url: avatarUrl,
-				});
-				await item.save();
-				updatePlayTimeRank(item);
-				res.send({ code: 0, data: "未刷新记录" });
-			}
-		} else {
-			const ugameData = await user_game_data.create({
-				openid: openid,
-				game_type: game_data.game_type,
-				sub_type: subType,
-				score: score,
-				play_time: game_data.add_play_time,
-				nick_name: filterEmojiName,
-				avatar_url: avatarUrl,
-				record_time: game_data.record_time,
+
+				let existData = item;
+				
+				if (!user_info && existData) {
+					if (item.avatar_url && item.avatar_url != "") {
+						filterEmojiName = item.nick_name;
+						avatarUrl = item.avatar_url;
+					} else {
+						filterEmojiName = filterEmojiName + item.id;
+					}
+				}
+
+				if (game_data.game_type == 1002) {
+					await addUserScore(openid, game_data.score, filterEmojiName);
+				}
+
+				if (existData) {
+					let newRecord = false;
+					if (game_data.game_type == 1001) {
+						newRecord = item.score > score;
+					} else {
+						newRecord = item.score < score;
+					}
+					
+					let playTime = item.play_time;
+					playTime += game_data.add_play_time || 0;
+					item.play_time = playTime;
+					
+					if (newRecord) {
+						item.set({
+							score: score,
+							record_time: game_data.record_time,
+							nick_name: filterEmojiName,
+							avatar_url: avatarUrl,
+						});
+						await item.save({ transaction: t });
+						return { code: 0, data: item, isNewRecord: true };
+					} else {
+						item.set({
+							nick_name: filterEmojiName,
+							avatar_url: avatarUrl,
+						});
+						await item.save({ transaction: t });
+						return { code: 0, data: "未刷新记录", isNewRecord: false };
+					}
+				} else {
+					const ugameData = await user_game_data.create({
+						openid: openid,
+						game_type: game_data.game_type,
+						sub_type: subType,
+						score: score,
+						play_time: game_data.add_play_time || 0,
+						nick_name: filterEmojiName,
+						avatar_url: avatarUrl,
+						record_time: game_data.record_time,
+					}, { transaction: t });
+					return { code: 0, data: ugameData, isNewRecord: true };
+				}
 			});
-			updateRank(ugameData);
-			res.send({ code: 0, data: ugameData });
+
+			res.send(result);
+		} catch (error) {
+			console.error('保存游戏数据错误:', error);
+			res.send({ code: -1, data: "保存失败" });
 		}
 	}
 });
-
-function updateRank(data) {
-	if (!data || !rankListData) return;
-	let key = data.game_type + "_" + data.sub_type;
-	let list = rankListData[key];
-	let lastRank;
-	let order = "";
-	let map = rankMap[key];
-	if (!list) {
-		list = [data];
-		rankListData[key] = list;
-		map = {};
-		map[data.openid] = data;
-		rankMap[key] = map;
-	}
-	else {
-		lastRank = map[data.openid];
-	}
-	if (lastRank) {
-		//已经在榜上
-		lastRank.score = data.score;
-		if (data.game_type == 1001) {
-			order = "asc";
-		}
-		else {
-			order = "desc";
-			updatePlayTimeRank(data);
-		}
-	}
-	else {
-		lastRank = list[list.length - 1];
-		if (data.game_type == 1001) {
-			if (data.score < lastRank.score) {
-				order = "asc";//舒尔特，从小到大
-				//用时更短
-				delete map[lastRank.openid];
-				list[list.length - 1] = data;
-				map[data.openid] = data;
-			}
-		}
-		else {
-			if (data.score > lastRank.score) {
-				order = "desc";//默认从大到小排序
-				//得分更多
-				delete map[lastRank.openid];
-				list[list.length - 1] = data;
-				map[data.openid] = data;
-			}
-			updatePlayTimeRank(data);
-		}
-	}
-	if (order && order != "") {
-		heapSort(list, order, "score");
-	}
-}
-
-function updatePlayTimeRank(data) {
-	if (data.game_type == 1002 && playTimeRanks && playTimeRanks.length > 0) {
-		let temp = playTimeRankMap[data.openid];
-		if (temp) {
-			temp.play_time = data.play_time;
-			heapSort(playTimeRanks, "desc", "play_time");
-		}
-		else {
-			temp = playTimeRanks[playTimeRanks.length - 1];
-			if (temp.play_time < data.play_time) {
-				//消消乐游玩时间更长，替换排名
-				delete playTimeRankMap[temp.openid];
-				playTimeRanks[playTimeRanks.length - 1] = data;
-				playTimeRankMap[data.openid] = data;
-				heapSort(playTimeRanks, "desc", "play_time");
-			}
-		}
-	}
-}
 //#endregion
 
 app.get("/api/user_data", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
-		const item = await user_data.findOne({
-			where: {
-				openid: openid,
-			},
-		});
-		if (item) {
-			res.send({ code: 0, data: item });
-		} else {
-			res.send({ code: -1, data: "暂无数据" });
+		try {
+			const item = await user_data.findOne({
+				where: { openid: openid },
+				attributes: ['openid', 'nick_name', 'avatar_url', 'score', 'skin_id', 'skin_list']
+			});
+			
+			if (item) {
+				res.send({ code: 0, data: item });
+			} else {
+				res.send({ code: -1, data: "暂无数据" });
+			}
+		} catch (error) {
+			console.error('查询用户数据错误:', error);
+			res.send({ code: -1, data: "查询失败" });
 		}
 	} else {
 		res.send({ code: -1, data: "未登录授权" });
@@ -471,61 +484,69 @@ app.post("/api/add_score_coin", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { score } = req.body;
-		const newScore = await addUserScore(openid, score);
-		res.send({ code: 0, data: { score: newScore } });
+		try {
+			const newScore = await addUserScore(openid, score);
+			res.send({ code: 0, data: { score: newScore } });
+		} catch (error) {
+			console.error('添加积分错误:', error);
+			res.send({ code: -1, data: "添加积分失败" });
+		}
 	}
 });
 
 //#region 兑换皮肤
-//兑换皮肤
 app.post("/api/buy_skin", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { skin_id } = req.body;
-		let user_data_item = await user_data
-			.findOne({
-				where: {
-					openid: openid,
-				},
-			})
-			.catch(() => {
-				console.error("user_data error--------");
-			});
+		try {
+			let user_data_item = await user_data
+				.findOne({
+					where: { openid: openid },
+				})
+				.catch(() => {
+					console.error("user_data error--------");
+				});
 
-		if (user_data_item) {
-			let item = user_data_item;
-			let skinListStr = item.skin_list;
-			let skinList;
-			if (skinListStr && skinListStr != "") {
-				skinList = skinListStr.split(",");
-			} else {
-				skinListStr = "";
-				skinList = [];
-			}
-			// console.log("当前皮肤列表",skinList,skinList.length);
-			if (skinList.indexOf(String(skin_id)) != -1) {
-				res.send({ code: 0, data: "已拥有skin_id:" + skin_id });
-			} else {
+			if (user_data_item) {
+				let skinListStr = user_data_item.skin_list;
+				let skinList;
+				if (skinListStr && skinListStr != "") {
+					skinList = skinListStr.split(",");
+				} else {
+					skinListStr = "";
+					skinList = [];
+				}
+				
+				if (skinList.indexOf(String(skin_id)) != -1) {
+					res.send({ code: 0, data: "已拥有skin_id:" + skin_id });
+					return;
+				}
+				
 				let shopCfg = game_config.shop.getByPk(skin_id);
 				if (!shopCfg) {
-					// console.log("shop配置错误:",skin_id,game_config.shop);
-				} else {
-					if (item.score >= shopCfg.price) {
-						if (skinList.length == 0) {
-							skinListStr += "" + skin_id;
-						} else {
-							skinListStr += "," + skin_id;
-						}
-						item.skin_list = skinListStr;
-						let newScore = item.score - shopCfg.price;
-						item.score = newScore;
-						await item.save();
-						res.send({ code: 0, data: { skin_id: skin_id, score: newScore } });
+					res.send({ code: -1, data: "商品配置错误" });
+					return;
+				}
+				
+				if (user_data_item.score >= shopCfg.price) {
+					if (skinList.length == 0) {
+						skinListStr += "" + skin_id;
 					} else {
-						res.send({ code: 0, data: "积分不足" });
+						skinListStr += "," + skin_id;
 					}
+					user_data_item.skin_list = skinListStr;
+					let newScore = user_data_item.score - shopCfg.price;
+					user_data_item.score = newScore;
+					await user_data_item.save();
+					res.send({ code: 0, data: { skin_id: skin_id, score: newScore } });
+				} else {
+					res.send({ code: 0, data: "积分不足" });
 				}
 			}
+		} catch (error) {
+			console.error('购买皮肤错误:', error);
+			res.send({ code: -1, data: "购买失败" });
 		}
 	}
 });
@@ -536,15 +557,28 @@ app.post("/api/use_grid_skin", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const { skin_id } = req.body;
 		const openid = req.headers["x-wx-openid"];
-		const item = await user_data.findOne({
-			where: {
-				openid: openid,
-			},
-		});
-		if (item) {
-			item.skin_id = skin_id;
-			await item.save();
-			res.send({ code: 0, data: { skin_id: skin_id } });
+		try {
+			const item = await user_data.findOne({
+				where: { openid: openid },
+				attributes: ['openid', 'skin_id', 'skin_list']
+			});
+			
+			if (item) {
+				// 检查用户是否拥有该皮肤
+				const skinList = item.skin_list ? item.skin_list.split(",") : [];
+				if (skinList.includes(String(skin_id))) {
+					item.skin_id = skin_id;
+					await item.save();
+					res.send({ code: 0, data: { skin_id: skin_id } });
+				} else {
+					res.send({ code: -1, data: "未拥有该皮肤" });
+				}
+			} else {
+				res.send({ code: -1, data: "用户不存在" });
+			}
+		} catch (error) {
+			console.error('使用皮肤错误:', error);
+			res.send({ code: -1, data: "使用皮肤失败" });
 		}
 	} else {
 		res.send({ code: -1, data: "未登录授权" });
@@ -553,41 +587,34 @@ app.post("/api/use_grid_skin", async (req, res) => {
 //#endregion
 
 //#region 跨天检测
-//判断time 距离当前时间是否24小时以上了
-var checkDate = new Date();
 function checkNextDay(time) {
-	checkDate.setTime(time * 1000 + 28800000);
-	//上次领奖时间，重置到0点
+	let checkDate = new Date(time * 1000 + 28800000);
 	checkDate.setHours(0, 0, 0, 0);
 	let nowTime = Math.floor(Date.now() / 1000);
-	let lastTime = Math.floor(checkDate.getTime() / 1000) - 28800; //东八区，减8小时才是0点;
-	// console.log("checkNextDay nowTime：" + nowTime,"lastTime：" + lastTime,"time：" + time,tDate);
-	//判断是否跨天 24*60*60
+	let lastTime = Math.floor(checkDate.getTime() / 1000) - 28800;
 	return nowTime - lastTime >= 86400;
 }
 //#endregion
 
 //#region分享奖励
-// 获取领奖状态
 app.get("/api/share_score_reward", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
-		const item = await share_rewards.findOne({
-			where: {
-				openid: openid,
-			},
-		});
-		if (item) {
-			let shareTime = item.share_time;
-			let hadGet = 1;
-			if (checkNextDay(shareTime)) {
-				//超过24小时，可继续领取
-				hadGet = 0;
+		try {
+			const item = await share_rewards.findOne({
+				where: { openid: openid },
+				attributes: ['share_time']
+			});
+			
+			if (item) {
+				let hadGet = checkNextDay(item.share_time) ? 0 : 1;
+				res.send({ code: 0, data: { had_get: hadGet } });
+			} else {
+				res.send({ code: 0, data: { had_get: 0 } });
 			}
-			res.send({ code: 0, data: { had_get: hadGet } });
-		} else {
-			//找不到数据，未领取状态
-			res.send({ code: 0, data: { had_get: 0 } });
+		} catch (error) {
+			console.error('获取分享奖励状态错误:', error);
+			res.send({ code: -1, data: "查询失败" });
 		}
 	} else {
 		res.send({ code: -1, data: "未登录授权" });
@@ -598,33 +625,33 @@ app.post("/api/share_score_reward", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const nowTime = Math.floor(Date.now() / 1000);
-		const item = await share_rewards.findOne({
-			where: {
-				openid: openid,
-			},
-		});
-		if (item) {
-			let shareTime = item.share_time;
-			if (checkNextDay(shareTime)) {
-				//可下发奖励
-				let count = item.share_count;
-				item.share_count = count + 1;
-				item.share_time = nowTime;
-				await item.save();
+		try {
+			const item = await share_rewards.findOne({
+				where: { openid: openid },
+			});
+			
+			if (item) {
+				if (checkNextDay(item.share_time)) {
+					item.share_count += 1;
+					item.share_time = nowTime;
+					await item.save();
+					await addUserScore(openid, 100);
+					res.send({ code: 0, data: { score: 100 } });
+				} else {
+					res.send({ code: -1, data: "已领取奖励，还未刷新重置" });
+				}
+			} else {
+				await share_rewards.create({
+					openid: openid,
+					share_time: nowTime,
+					share_count: 1,
+				});
 				await addUserScore(openid, 100);
 				res.send({ code: 0, data: { score: 100 } });
-			} else {
-				res.send({ code: -1, data: "已领取奖励，还未刷新重置" });
 			}
-		} else {
-			//数据库没有保存，直接判定是可领取状态
-			await share_rewards.create({
-				openid: openid,
-				share_time: nowTime,
-				share_count: 1,
-			});
-			await addUserScore(openid, 100);
-			res.send({ code: 0, data: { score: 100 } });
+		} catch (error) {
+			console.error('领取分享奖励错误:', error);
+			res.send({ code: -1, data: "领取失败" });
 		}
 	} else {
 		res.send({ code: -1, data: "未登录授权" });
@@ -637,21 +664,27 @@ app.post("/api/game_grid_save", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { jsonStr } = req.body;
-		const item = await game_grid_save_data.findOne({
-			where: { openid: openid },
-		});
-		if (item) {
-			item.data_str = jsonStr;
-			item.is_valid = 1;
-			await item.save();
-			res.send({ code: 0, data: { result: "保存成功" } });
-		} else {
-			await game_grid_save_data.create({
-				openid: openid,
-				data_str: jsonStr,
-				is_valid: 1,
+		try {
+			const item = await game_grid_save_data.findOne({
+				where: { openid: openid },
 			});
-			res.send({ code: 0, data: { result: "保存成功" } });
+			
+			if (item) {
+				item.data_str = jsonStr;
+				item.is_valid = 1;
+				await item.save();
+				res.send({ code: 0, data: { result: "保存成功" } });
+			} else {
+				await game_grid_save_data.create({
+					openid: openid,
+					data_str: jsonStr,
+					is_valid: 1,
+				});
+				res.send({ code: 0, data: { result: "保存成功" } });
+			}
+		} catch (error) {
+			console.error('保存游戏进度错误:', error);
+			res.send({ code: -1, data: "保存失败" });
 		}
 	}
 });
@@ -659,21 +692,26 @@ app.post("/api/game_grid_save", async (req, res) => {
 app.get("/api/game_grid_save", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
-		const item = await game_grid_save_data.findOne({
-			where: { openid: openid },
-		});
-		if (item) {
-			let jsonStr = item.data_str;
-			let is_valid = item.is_valid;
-			if (is_valid == 1) {
-				item.is_valid = 0;
-				await item.save();
-				res.send({ code: 0, data: jsonStr });
+		try {
+			const item = await game_grid_save_data.findOne({
+				where: { openid: openid },
+				attributes: ['data_str', 'is_valid']
+			});
+			
+			if (item) {
+				if (item.is_valid == 1) {
+					item.is_valid = 0;
+					await item.save();
+					res.send({ code: 0, data: item.data_str });
+				} else {
+					res.send({ code: -1, data: "数据已失效" });
+				}
 			} else {
-				res.send({ code: -1, data: "数据已失效" });
+				res.send({ code: -1, data: "暂无数据" });
 			}
-		} else {
-			res.send({ code: -1, data: "暂无数据" });
+		} catch (error) {
+			console.error('获取游戏进度错误:', error);
+			res.send({ code: -1, data: "获取失败" });
 		}
 	}
 });
@@ -681,8 +719,27 @@ app.get("/api/game_grid_save", async (req, res) => {
 
 //#region 测试
 app.get("/api/get_rank_data", async (req, res) => {
-	getAllRankList();
-	res.send({ code: 0, data: rankListData });
+	try {
+		// 清空缓存，重新获取最新数据
+		rankCache.clear();
+		cacheExpiry.clear();
+		
+		// 获取所有游戏类型的排行榜
+		const gameTypes = [1001, 1002];
+		const results = {};
+		
+		for (const gameType of gameTypes) {
+			results[gameType] = await getRankList(gameType, 0);
+			if (gameType === 1002) {
+				results['1002_101'] = await getRankList(1002, 101);
+			}
+		}
+		
+		res.send({ code: 0, data: results });
+	} catch (error) {
+		console.error('获取测试排行榜数据错误:', error);
+		res.send({ code: -1, data: "获取失败" });
+	}
 });
 //#endregion
 
@@ -694,7 +751,7 @@ async function bootstrap() {
 	await initGameGridSave();
 	app.listen(port, () => {
 		console.log("启动成功", port);
-		initRankData(0);
+		console.log("内存优化版本已启用 - 使用数据库查询替代内存存储");
 	});
 }
 

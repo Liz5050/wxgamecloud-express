@@ -108,6 +108,14 @@ async function getRankList(game_type, sub_type = 0) {
 	
 	let order = 'DESC';
 	let targetName = 'score';
+	let whereCondition = { game_type };
+	
+	// 特殊处理：1002类型的subtype在数据库中都是0，但客户端可能请求100
+	if (game_type == 1002 && (sub_type == 100 || sub_type == 101)) {
+		whereCondition.sub_type = 0; // 查询数据库中实际存储的subtype=0
+	} else {
+		whereCondition.sub_type = sub_type;
+	}
 	
 	if (game_type == 1001) {
 		order = 'ASC'; // 舒尔特挑战按时间升序
@@ -117,7 +125,7 @@ async function getRankList(game_type, sub_type = 0) {
 	
 	try {
 		const result = await user_game_data.findAll({
-			where: { game_type, sub_type },
+			where: whereCondition,
 			order: [[targetName, order]],
 			limit: 100,
 			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
@@ -275,12 +283,20 @@ app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
 	if (game_type) {
 		const openid = req.headers["x-wx-openid"];
 		try {
+			let whereCondition = {
+				openid: openid,
+				game_type: game_type
+			};
+			
+			// 特殊处理：1002类型的subtype在数据库中都是0，但客户端可能请求100
+			if (game_type == 1002 && sub_type == 100) {
+				whereCondition.sub_type = 0; // 查询数据库中实际存储的subtype=0
+			} else {
+				whereCondition.sub_type = sub_type;
+			}
+			
 			const item = await user_game_data.findAll({
-				where: {
-					openid: openid,
-					game_type: game_type,
-					sub_type: sub_type
-				},
+				where: whereCondition,
 				limit: 100,
 				attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
 			});

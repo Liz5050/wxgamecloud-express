@@ -1,5 +1,9 @@
-// 加载环境变量
-require('dotenv').config({ path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env' });
+// 加载环境变量 - 使用统一的配置管理系统
+const { config: envConfig } = require('./config/env.config');
+
+// 设置环境变量（兼容旧代码）
+const envVars = envConfig.getCurrentConfig();
+Object.assign(process.env, envVars);
 
 const path = require("path");
 const express = require("express");
@@ -577,8 +581,8 @@ app.post("/api/use_grid_skin", async (req, res) => {
 		const openid = req.headers["x-wx-openid"];
 		try {
 			const item = await user_data.findOne({
-				where: { openid: openid },
-				attributes: ['openid', 'skin_id', 'skin_list']
+				where: { openid: openid }
+				// 注意：必须包含主键字段id，否则无法保存
 			});
 			
 			if (item) {
@@ -711,10 +715,10 @@ app.get("/api/game_grid_save", async (req, res) => {
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		try {
-			const item = await game_grid_save_data.findOne({
-				where: { openid: openid },
-				attributes: ['data_str', 'is_valid']
-			});
+				const item = await game_grid_save_data.findOne({
+					where: { openid: openid }
+					// 注意：必须包含主键字段id，否则无法保存
+				});
 			
 			if (item) {
 				if (item.is_valid == 1) {

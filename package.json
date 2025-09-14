@@ -5,12 +5,15 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "dev": "node -r dotenv/config index.js dotenv_config_path=.env.local",
+    "dev:80": "set PORT=80&& node -r dotenv/config index.js dotenv_config_path=.env.local",
+    "dev:3000": "set PORT=3000&& node -r dotenv/config index.js dotenv_config_path=.env.local",
+    "dev:custom": "node -r dotenv/config index.js",
     "test": "node testOptimization.js",
     "test:safe": "node start-test.js",
     "test:quick": "node quick-test.js",
     "test:perf": "node -e \"const { OptimizationTester } = require('./testOptimization'); new OptimizationTester().runAllTests();\"",
     "test:monitor": "node -e \"const { PerformanceMonitor } = require('./performanceMonitor'); const monitor = new PerformanceMonitor(); setInterval(() => console.log(JSON.stringify(monitor.getPerformanceStats(), null, 2)), 3000);\"",
-    "dev": "set NODE_ENV=development&& node index.js",
     "prod": "set NODE_ENV=production&& node index.js"
   },
   "author": "",

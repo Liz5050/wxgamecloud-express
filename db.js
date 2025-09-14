@@ -1,5 +1,9 @@
-// 加载环境变量
-require('dotenv').config({ path: process.env.NODE_ENV === 'test' ? '.env.test' : '.env' });
+// 加载环境变量 - 使用统一的配置管理系统
+const { config: envConfig } = require('./config/env.config');
+
+// 设置环境变量（兼容旧代码）
+const envVars = envConfig.getCurrentConfig();
+Object.assign(process.env, envVars);
 
 const { Sequelize, DataTypes, Op } = require("sequelize");
 

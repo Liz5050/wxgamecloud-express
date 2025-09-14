@@ -1,11 +1,14 @@
 // 加载环境变量 - 使用统一的配置管理系统
-const { config: envConfig } = require('./config/env.config');
+const { config: envConfig } = require('../config/env.config.js');
 
 // 设置环境变量（兼容旧代码）
 const envVars = envConfig.getCurrentConfig();
 Object.assign(process.env, envVars);
 
 const { Sequelize, DataTypes, Op } = require("sequelize");
+
+// 导入GameGridSaveDB模型
+const { initGameGridSave, game_grid_save_data } = require("./GameGridSaveDB.js");
 
 // 从环境变量中读取数据库配置 - 微信云托管标准配置
 const { 
@@ -166,6 +169,8 @@ module.exports = {
   user_data,
   initShare_rewards,
   share_rewards,
+  initGameGridSave,
+  game_grid_save_data,
   sequelize,
   Op
 };

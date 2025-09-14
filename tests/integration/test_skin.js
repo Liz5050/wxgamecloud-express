@@ -1,4 +1,4 @@
-const { sequelize, user_data } = require('./db');
+const { sequelize, user_data } = require('../../src/models/index.js');
 
 async function testSkinFunction() {
     try {

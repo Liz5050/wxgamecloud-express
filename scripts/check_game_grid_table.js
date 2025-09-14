@@ -1,4 +1,4 @@
-const { sequelize } = require('./db');
+const { sequelize } = require('../src/models/index.js');
 
 async function checkGameGridTable() {
     try {
@@ -45,7 +45,7 @@ async function checkGameGridTable() {
         // 如果表不存在
         if (error.original && error.original.code === 'ER_NO_SUCH_TABLE') {
             console.log('\n💡 表不存在，需要重新创建表结构');
-            console.log('   运行: node -e "require(\'./module/gameGrid/GameGridSaveDB.js\').initGameGridSave()"');
+            console.log('   运行: node -e "require(\'../src/models/GameGridSaveDB.js\').initGameGridSave()"');
         }
     } finally {
         await sequelize.close();

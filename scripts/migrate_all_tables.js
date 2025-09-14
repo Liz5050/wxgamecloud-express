@@ -1,4 +1,4 @@
-const { sequelize } = require('./db');
+const { sequelize } = require('../src/models/index.js');
 
 async function migrateAllTables() {
     try {

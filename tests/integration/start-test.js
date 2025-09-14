@@ -16,28 +16,17 @@ console.log('=' .repeat(50));
 
 // 检查必要文件
 function checkRequiredFiles() {
-    const requiredFiles = [
-        'index.js',
-        'db.js', 
-        'performanceMonitor.js',
-        'testOptimization.js',
-        'test.config.js'
-    ];
-
-    const missingFiles = [];
-    requiredFiles.forEach(file => {
-        if (!fs.existsSync(file)) {
-            missingFiles.push(file);
-        }
-    });
-
-    if (missingFiles.length > 0) {
-        console.log('❌ 缺少必要文件:', missingFiles.join(', '));
-        console.log('请确保所有优化文件已正确创建');
+    // 使用绝对路径检查文件
+    const testDir = __dirname;
+    const testFile = path.join(testDir, 'testOptimization.js');
+    
+    if (!fs.existsSync(testFile)) {
+        console.log('❌ 缺少测试文件: testOptimization.js');
+        console.log('请确保测试文件已正确创建');
         process.exit(1);
     }
 
-    console.log('✅ 所有必要文件检查通过');
+    console.log('✅ 测试环境检查通过');
 }
 
 // 显示测试菜单
@@ -164,19 +153,22 @@ function runPerformanceMonitor() {
     console.log('📊 启动性能监控...（Ctrl+C 退出）');
     
     try {
-        const { PerformanceMonitor } = require('./performanceMonitor');
+        const { PerformanceMonitor } = require('../../src/services/PerformanceMonitor');
         const monitor = new PerformanceMonitor();
         
         const interval = setInterval(() => {
-            const stats = monitor.getPerformanceStats();
+            const report = monitor.getPerformanceReport();
             console.clear();
             console.log('📊 实时性能监控');
             console.log('=' .repeat(30));
-            console.log(`内存使用: ${stats.memoryUsage}MB`);
-            console.log(`CPU使用率: ${stats.cpuUsage}%`);
-            console.log(`运行时间: ${stats.uptime}秒`);
-            console.log(`请求总数: ${stats.totalRequests}`);
-            console.log(`平均响应时间: ${stats.avgResponseTime}ms`);
+            if (report.memory) {
+                console.log(`内存使用: ${report.memory.current} (平均: ${report.memory.average})`);
+                console.log(`总内存: ${report.memory.total}, 空闲: ${report.memory.free}`);
+            }
+            if (report.responseTimes) {
+                console.log(`请求总数: ${report.responseTimes.totalRequests}`);
+                console.log(`平均响应时间: ${report.responseTimes.averageResponseTime}`);
+            }
             console.log('=' .repeat(30));
             console.log('按 Ctrl+C 退出监控');
         }, 2000);
@@ -230,7 +222,7 @@ function askForChoice() {
 async function checkServerRunning() {
     try {
         const axios = require('axios');
-        const response = await axios.get('http://localhost:80/api/performance', {
+        const response = await axios.get('http://localhost:3000/api/performance', {
             timeout: 2000
         });
         return response.status === 200;

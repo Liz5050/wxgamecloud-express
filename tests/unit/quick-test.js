@@ -45,7 +45,7 @@ function runBasicTest() {
     console.log('\n🧪 运行基础API测试...');
     
     try {
-        const { OptimizationTester } = require('./testOptimization');
+        const { OptimizationTester } = require('../integration/testOptimization');
         const tester = new OptimizationTester();
         
         // 只运行关键测试

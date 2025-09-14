@@ -1,5 +1,4 @@
-const { sequelize } = require('./db');
-const { game_grid_save_data } = require('./module/gameGrid/GameGridSaveDB');
+const { sequelize, game_grid_save_data } = require('../src/models/index.js');
 
 async function checkRealError() {
     try {

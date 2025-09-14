@@ -1,5 +1,4 @@
-const { sequelize, user_data, user_game_data, share_rewards } = require('./db');
-const { game_grid_save_data } = require('./module/gameGrid/GameGridSaveDB');
+const { sequelize, user_data, user_game_data, share_rewards, game_grid_save_data } = require('../src/models/index.js');
 
 async function checkAllModels() {
     try {

@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const {sequelize} = require("../../db.js");
+const {sequelize} = require("./index.js");
 const game_grid_save_data = sequelize.define("game_grid_save_data", {
 	id: {
 		type: DataTypes.INTEGER,

@@ -765,7 +765,7 @@ app.get("/api/get_rank_data", async (req, res) => {
 });
 //#endregion
 
-const port = process.env.PORT || 80;
+const port = process.env.PORT || 3000;
 async function bootstrap() {
 	await initUserDB();
 	await initUser_data();

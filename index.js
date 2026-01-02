@@ -5,9 +5,9 @@
  * 启动 Express 服务器
  */
 
-const app = require('./src/app');
+const { app } = require('./src/app');
 
-const port = process.env.PORT || 80;
+const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
     console.log("🚀 服务器启动成功，端口:", port);

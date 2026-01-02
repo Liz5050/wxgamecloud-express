@@ -7,9 +7,6 @@ Object.assign(process.env, envVars);
 
 const { Sequelize, DataTypes, Op } = require("sequelize");
 
-// 导入GameGridSaveDB模型
-const { initGameGridSave, game_grid_save_data } = require("./GameGridSaveDB.js");
-
 // 从环境变量中读取数据库配置 - 微信云托管标准配置
 const { 
   MYSQL_USERNAME = 'root', 
@@ -157,6 +154,31 @@ const share_rewards = sequelize.define("share_rewards", {
 
 async function initShare_rewards() {
   await share_rewards.sync();
+}
+
+// GameGridSaveDB模型定义
+const game_grid_save_data = sequelize.define("game_grid_save_data", {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  openid: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  data_str: {
+    type: DataTypes.STRING,
+    defaultValue: "",
+  },
+  is_valid: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  }
+});
+
+async function initGameGridSave() {
+  await game_grid_save_data.sync();
 }
 
 // 导出初始化方法和模型

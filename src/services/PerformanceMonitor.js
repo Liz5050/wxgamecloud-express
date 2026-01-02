@@ -11,14 +11,6 @@ class PerformanceMonitor {
             responseTimes: []
         };
         
-        // 尝试导入app模块以访问缓存（仅在非生产环境或特定条件下）
-        try {
-            this.appModule = require('../app');
-        } catch (error) {
-            // 避免循环依赖问题
-            this.appModule = null;
-        }
-        
         this.setupPerformanceMonitoring();
     }
     
@@ -134,24 +126,45 @@ class PerformanceMonitor {
     
     clearMemoryCaches() {
         // 清理应用级别的缓存
-        if (this.appModule) {
+        try {
+            // 在需要时动态导入app模块，避免循环依赖问题
+            let appModule;
             try {
-                // 清理排行榜缓存
-                if (this.appModule.rankCache && typeof this.appModule.rankCache.clear === 'function') {
-                    const cacheSizeBefore = this.appModule.rankCache.size;
-                    this.appModule.rankCache.clear();
-                    const cacheSizeAfter = this.appModule.rankCache.size;
-                    console.log(`🧹 清理排行榜缓存: 移除 ${cacheSizeBefore - cacheSizeAfter} 个条目`);
-                }
-                
-                // 清理缓存过期时间
-                if (this.appModule.cacheExpiry && typeof this.appModule.cacheExpiry.clear === 'function') {
-                    this.appModule.cacheExpiry.clear();
-                    console.log('🧹 清理缓存过期时间记录');
-                }
-            } catch (error) {
-                console.error('清理应用缓存失败:', error);
+                // 使用try-catch包装require，防止循环依赖导致的错误
+                appModule = require('../app');
+                // 注意：不保存到实例属性，避免持有未完全初始化的模块引用
+            } catch (requireError) {
+                console.debug('动态导入app模块失败（可能是循环依赖导致）:', requireError.message);
+                return;
             }
+            
+            // 安全地检查rankCache属性是否存在且可用
+            // 使用更严格的检查方式，避免在模块未完全初始化时访问属性
+            if (appModule && typeof appModule === 'object' && 
+                appModule !== null && 
+                Object.prototype.hasOwnProperty.call(appModule, 'rankCache') && 
+                typeof appModule.rankCache === 'object' && 
+                appModule.rankCache !== null && 
+                typeof appModule.rankCache.clear === 'function') {
+                const cacheSizeBefore = appModule.rankCache.size;
+                appModule.rankCache.clear();
+                const cacheSizeAfter = appModule.rankCache.size;
+                console.log(`🧹 清理排行榜缓存: 移除 ${cacheSizeBefore - cacheSizeAfter} 个条目`);
+            }
+            
+            // 安全地检查cacheExpiry属性是否存在且可用
+            if (appModule && typeof appModule === 'object' && 
+                appModule !== null && 
+                Object.prototype.hasOwnProperty.call(appModule, 'cacheExpiry') && 
+                typeof appModule.cacheExpiry === 'object' && 
+                appModule.cacheExpiry !== null && 
+                typeof appModule.cacheExpiry.clear === 'function') {
+                appModule.cacheExpiry.clear();
+                console.log('🧹 清理缓存过期时间记录');
+            }
+        } catch (error) {
+            // 忽略循环依赖或其他导入错误
+            console.debug('清理应用缓存失败:', error.message);
         }
         
         // 清理其他可能的缓存

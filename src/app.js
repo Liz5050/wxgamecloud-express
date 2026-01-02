@@ -12,16 +12,14 @@ const morgan = require("morgan");
 const game_config = require("./config/game_config");
 const DatabaseCleaner = require('./services/DatabaseCleaner');
 const {
-	initGameGridSave,
-	game_grid_save_data,
-} = require("./models/GameGridSaveDB");
-const {
 	initUser_game_data: initUserDB,
 	user_game_data,
 	initUser_data,
 	user_data,
 	initShare_rewards,
 	share_rewards,
+	initGameGridSave,
+	game_grid_save_data,
 	sequelize,
 	Op
 } = require("./models/index");

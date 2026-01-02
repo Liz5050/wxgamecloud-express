@@ -856,8 +856,12 @@ async function bootstrap() {
 	});
 }
 
-// 导出Express应用实例
-module.exports = app;
+// 导出Express应用实例和缓存对象
+module.exports = {
+    app,
+    rankCache,
+    cacheExpiry
+};
 
 // 如果直接运行此文件，则启动服务器
 if (require.main === module) {

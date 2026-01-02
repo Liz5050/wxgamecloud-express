@@ -11,6 +11,14 @@ class PerformanceMonitor {
             responseTimes: []
         };
         
+        // 尝试导入app模块以访问缓存（仅在非生产环境或特定条件下）
+        try {
+            this.appModule = require('../app');
+        } catch (error) {
+            // 避免循环依赖问题
+            this.appModule = null;
+        }
+        
         this.setupPerformanceMonitoring();
     }
     
@@ -24,6 +32,32 @@ class PerformanceMonitor {
         setInterval(() => {
             this.cleanupOldMetrics();
         }, 300000);
+        
+        // 每15分钟定期清理内存和缓存，即使内存使用率未达到阈值
+        setInterval(() => {
+            this.performRegularCleanup();
+        }, 900000);
+    }
+    
+    // 定期执行的内存清理
+    performRegularCleanup() {
+        console.log('📅 执行定期内存清理');
+        
+        // 清理应用缓存
+        this.clearMemoryCaches();
+        
+        // 执行垃圾回收（如果可用）
+        if (global.gc) {
+            global.gc();
+            console.log('🧹 执行定期垃圾回收');
+        }
+        
+        // 记录清理后的内存状态
+        const memoryUsage = process.memoryUsage();
+        console.log('📊 定期清理后内存状态:', {
+            heapUsed: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2) + 'MB',
+            heapTotal: (memoryUsage.heapTotal / 1024 / 1024).toFixed(2) + 'MB'
+        });
     }
     
     collectMetrics() {
@@ -40,23 +74,58 @@ class PerformanceMonitor {
             free: freeMem
         });
         
-        // 检查内存使用是否超过阈值
+        // 基于内存使用率的分级垃圾回收和清理策略
         if (memoryUsage > this.memoryUsageThreshold) {
-            console.warn(`⚠️  内存使用率过高: ${(memoryUsage * 100).toFixed(2)}%`);
+            // 80%以上：紧急内存压力处理
+            console.warn(`⚠️  内存使用率过高: ${(memoryUsage * 100).toFixed(2)}% - 执行紧急清理`);
             this.handleMemoryPressure();
-        }
-        
-        // 清理内存缓存（如果使用率过高）
-        if (memoryUsage > this.memoryUsageThreshold - 0.1) {
+            this.clearMemoryCaches();
+        } else if (memoryUsage > this.memoryUsageThreshold - 0.15) {
+            // 65%以上：中等内存压力处理
+            console.warn(`⚠️  内存使用率偏高: ${(memoryUsage * 100).toFixed(2)}% - 执行常规清理`);
+            this.clearMemoryCaches();
+            
+            // 执行垃圾回收
+            if (global.gc) {
+                global.gc();
+                console.log('🧹 执行中等压力垃圾回收');
+            }
+        } else if (memoryUsage > this.memoryUsageThreshold - 0.25) {
+            // 55%以上：轻量内存压力处理
+            console.log(`ℹ️  内存使用率正常偏高: ${(memoryUsage * 100).toFixed(2)}% - 执行轻量清理`);
             this.clearMemoryCaches();
         }
     }
     
     handleMemoryPressure() {
-        // 强制垃圾回收（Node.js 需要启动时添加 --expose-gc 参数）
+        // 优化的垃圾回收策略
         if (global.gc) {
-            global.gc();
-            console.log('🧹 执行强制垃圾回收');
+            try {
+                const beforeGc = process.memoryUsage();
+                global.gc();
+                const afterGc = process.memoryUsage();
+                
+                const freedMemoryMB = ((beforeGc.heapUsed - afterGc.heapUsed) / 1024 / 1024).toFixed(2);
+                console.log(`🧹 执行强制垃圾回收: 释放 ${freedMemoryMB} MB 内存`);
+                
+                // 记录垃圾回收效果
+                this.metrics.gc = this.metrics.gc || [];
+                this.metrics.gc.push({
+                    timestamp: Date.now(),
+                    freedMemoryMB: parseFloat(freedMemoryMB),
+                    heapUsedBefore: beforeGc.heapUsed,
+                    heapUsedAfter: afterGc.heapUsed
+                });
+                
+                // 如果垃圾回收效果不理想，考虑更激进的清理策略
+                if (parseFloat(freedMemoryMB) < 10) {
+                    console.log('⚠️  垃圾回收效果不佳，执行额外清理');
+                    this.clearModuleCache();
+                    this.clearMemoryCaches();
+                }
+            } catch (error) {
+                console.error('执行垃圾回收失败:', error);
+            }
         }
         
         // 清理模块缓存（谨慎使用）
@@ -64,9 +133,29 @@ class PerformanceMonitor {
     }
     
     clearMemoryCaches() {
-        // 这里可以清理应用级别的缓存
-        // 例如：rankCache.clear() 等
-        console.log('🧹 清理内存缓存');
+        // 清理应用级别的缓存
+        if (this.appModule) {
+            try {
+                // 清理排行榜缓存
+                if (this.appModule.rankCache && typeof this.appModule.rankCache.clear === 'function') {
+                    const cacheSizeBefore = this.appModule.rankCache.size;
+                    this.appModule.rankCache.clear();
+                    const cacheSizeAfter = this.appModule.rankCache.size;
+                    console.log(`🧹 清理排行榜缓存: 移除 ${cacheSizeBefore - cacheSizeAfter} 个条目`);
+                }
+                
+                // 清理缓存过期时间
+                if (this.appModule.cacheExpiry && typeof this.appModule.cacheExpiry.clear === 'function') {
+                    this.appModule.cacheExpiry.clear();
+                    console.log('🧹 清理缓存过期时间记录');
+                }
+            } catch (error) {
+                console.error('清理应用缓存失败:', error);
+            }
+        }
+        
+        // 清理其他可能的缓存
+        console.log('🧹 清理内存缓存完成');
     }
     
     clearModuleCache() {

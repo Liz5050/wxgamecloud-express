@@ -134,6 +134,96 @@ class DatabaseCleaner {
         }
     }
     
+    // 直接控制user_game_data表记录数量，确保不超过阈值
+    async cleanupUserDataTable() {
+        console.log('📊 开始检查并清理user_game_data表记录数量...');
+        
+        try {
+            const tableSizes = await this.checkTableSizes();
+            const userGameDataInfo = tableSizes.user_game_data;
+            
+            if (!userGameDataInfo) {
+                console.log('❌ 无法获取user_game_data表信息');
+                return 0;
+            }
+            
+            console.log(`📊 user_game_data表当前状态: ${userGameDataInfo.current}/${userGameDataInfo.max} (${userGameDataInfo.percentage}%)`);
+            
+            // 如果未超过阈值，不需要清理
+            if (!userGameDataInfo.exceeded) {
+                console.log('✅ user_game_data表记录数量未超过阈值，无需清理');
+                return 0;
+            }
+            
+            // 计算需要删除的记录数
+            const recordsToDelete = userGameDataInfo.current - userGameDataInfo.max;
+            console.log(`⚠️  需要删除 ${recordsToDelete} 条记录以达到阈值`);
+            
+            // 获取需要保留的最新记录的ID边界
+            const thresholdRecord = await this.models.user_game_data.findAll({
+                attributes: ['id'],
+                order: [['record_time', 'DESC']],
+                limit: userGameDataInfo.max,
+                offset: userGameDataInfo.max - 1,
+                raw: true
+            });
+            
+            if (thresholdRecord.length === 0) {
+                console.log('❌ 无法确定需要保留的记录边界');
+                return 0;
+            }
+            
+            const thresholdId = thresholdRecord[0].id;
+            
+            // 分批删除旧记录
+            let totalDeleted = 0;
+            const batchSize = this.config.batchSize;
+            
+            while (totalDeleted < recordsToDelete) {
+                // 计算当前批次删除数量（不超过剩余需要删除的数量）
+                const currentBatchSize = Math.min(batchSize, recordsToDelete - totalDeleted);
+                
+                const deleted = await this.models.user_game_data.destroy({
+                    where: {
+                        id: {
+                            [Op.lt]: thresholdId
+                        }
+                    },
+                    limit: currentBatchSize
+                });
+                
+                if (deleted === 0) break; // 没有更多记录可删除
+                
+                totalDeleted += deleted;
+                console.log(`🗑️  已删除 ${deleted} 条旧游戏记录，累计删除 ${totalDeleted}/${recordsToDelete}`);
+                
+                // 短暂延迟，避免数据库压力过大
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            this.cleanupStats.totalCleaned += totalDeleted;
+            this.cleanupStats.lastCleaned = totalDeleted;
+            this.cleanupStats.lastRun = new Date();
+            
+            console.log(`✅ user_game_data表清理完成！总共删除 ${totalDeleted} 条旧记录`);
+            
+            // 记录清理操作
+            await this.logCleanupOperation('user_game_data_size_control', {
+                recordsToDelete,
+                totalDeleted,
+                remainingRecords: userGameDataInfo.current - totalDeleted,
+                threshold: userGameDataInfo.max
+            });
+            
+            return totalDeleted;
+            
+        } catch (error) {
+            console.error('清理user_game_data表失败:', error);
+            this.cleanupStats.errors++;
+            return 0;
+        }
+    }
+    
     // 清理僵尸用户数据（性能优化版）- 增加数量条件保护
     async cleanupZombieUsers(options = {}) {
         console.log('🚀 开始清理僵尸用户数据...');
@@ -387,6 +477,7 @@ class DatabaseCleaner {
         setInterval(async () => {
             try {
                 await this.cleanupZombieUsers({ force: false }); // 自动调用，不强制清理
+                await this.cleanupUserDataTable(); // 控制user_game_data表记录数量
                 await this.archiveOldData();
                 
                 // 记录性能指标
@@ -402,9 +493,12 @@ class DatabaseCleaner {
             }
         }, 12 * 60 * 60 * 1000); // 12小时
         
-        // 立即执行一次
+        // 立即执行一次完整清理
         setTimeout(() => {
-            this.cleanupZombieUsers({ force: false }).catch(console.error);
+            Promise.all([
+                this.cleanupZombieUsers({ force: false }),
+                this.cleanupUserDataTable()
+            ]).catch(console.error);
         }, 5000);
     }
 }

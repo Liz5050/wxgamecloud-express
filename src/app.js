@@ -65,7 +65,7 @@ app.post("/api/clear-cache", (req, res) => {
 // 使用数据库查询替代内存存储，大幅减少内存占用
 var rankCache = new Map();
 var cacheExpiry = new Map();
-const CACHE_TTL = 30000; // 30秒缓存
+const CACHE_TTL = 15000; // 15秒缓存
 
 // 清空过期的缓存 - 安全的内存管理
 function cleanupExpiredCache() {
@@ -81,7 +81,7 @@ function cleanupExpiredCache() {
 	}
 	
 	// 如果缓存条目过多，强制清理最旧的50%以防止内存泄漏
-	if (rankCache.size > 1000) {
+	if (rankCache.size > 500) {
 		const keys = Array.from(rankCache.keys());
 		const keysToRemove = keys.slice(0, Math.floor(keys.length * 0.5));
 		
@@ -98,8 +98,8 @@ function cleanupExpiredCache() {
 	}
 }
 
-// 每2分钟清理一次过期缓存（更频繁的清理）
-setInterval(cleanupExpiredCache, 120000);
+// 每1分钟清理一次过期缓存（更频繁的清理）
+setInterval(cleanupExpiredCache, 60000);
 
 // 获取排行榜数据 - 使用数据库查询和缓存
 async function getRankList(game_type, sub_type = 0) {

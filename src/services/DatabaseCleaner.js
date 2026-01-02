@@ -10,8 +10,8 @@ class DatabaseCleaner {
         // 基于服务器性能参数的智能阈值配置
         // 内存使用率51.04%，平均响应时间19.65ms - 性能良好
         this.config = {
-            // 僵尸用户定义：30天未活跃
-            zombieUserThreshold: 30 * 24 * 60 * 60 * 1000, // 30天
+            // 僵尸用户定义：15天未活跃
+            zombieUserThreshold: 15 * 24 * 60 * 60 * 1000, // 15天
             
             // 清理批次大小（基于服务器性能优化）
             batchSize: 100,
@@ -28,8 +28,8 @@ class DatabaseCleaner {
             // 最大保留记录数（防止无限制增长）
             maxRecords: {
                 user_game_data: 50000,    // 5万条游戏记录
-                user_data: 20000,         // 2万条用户数据
-                share_rewards: 20000      // 2万条分享奖励
+                user_data: 10000,         // 1万条用户数据
+                share_rewards: 10000      // 1万条分享奖励
             }
         };
         
@@ -52,76 +52,20 @@ class DatabaseCleaner {
         }
     }
     
-    // 记录清理操作到文件（异步非阻塞）
+    // 简化的日志记录，只保留控制台输出
     async logCleanupOperation(operationType, details) {
-        const timestamp = new Date().toISOString();
-        const logEntry = {
-            timestamp: timestamp,
-            operation: operationType,
+        // 只保留控制台日志，不再写入文件
+        console.log(`📝 清理操作: ${operationType}`, {
             ...details,
-            // 移除详细的服务器信息以减少数据量
             memoryUsageMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-        };
-        
-        // 简化用户详情信息，只保留必要数据
-        if (logEntry.zombieUserDetails) {
-            logEntry.zombieUserDetails = logEntry.zombieUserDetails.map(user => ({
-                openid: user.openid.substring(0, 8) + '...', // 部分隐藏敏感信息
-                score: user.score,
-                skin_id: user.skin_id
-                // 移除createdAt等不必要字段
-            }));
-        }
-        
-        const logFileName = `cleanup_${timestamp.replace(/:/g, '-')}.json`;
-        const logFilePath = path.join(this.cleanupLogsDir, logFileName);
-        
-        try {
-            // 使用异步写入，不阻塞事件循环
-            await fs.promises.writeFile(logFilePath, JSON.stringify(logEntry));
-            
-            // 异步追加到汇总日志
-            this.appendToSummaryLogAsync(logEntry);
-            
-        } catch (error) {
-            console.error('写入清理日志失败:', error);
-        }
+        });
     }
     
-    // 异步追加到汇总日志（非阻塞）
-    async appendToSummaryLogAsync(logEntry) {
-        const summaryFile = path.join(this.cleanupLogsDir, 'cleanup_summary.jsonl');
-        
-        try {
-            await fs.promises.appendFile(summaryFile, JSON.stringify(logEntry) + '\n');
-        } catch (error) {
-            console.error('写入汇总日志失败:', error);
-        }
-    }
-    
-    // 批量日志写入（性能优化）
+    // 移除批量日志写入，简化为控制台输出
     async batchLogCleanupOperations(operations) {
         if (operations.length === 0) return;
         
-        const batchEntry = {
-            timestamp: new Date().toISOString(),
-            operation: 'batch_cleanup',
-            totalOperations: operations.length,
-            operations: operations.map(op => ({
-                type: op.operation,
-                deleted: op.totalDeleted || 0,
-                memoryUsageMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
-            }))
-        };
-        
-        try {
-            const logFileName = `batch_cleanup_${new Date().toISOString().replace(/:/g, '-')}.json`;
-            const logFilePath = path.join(this.cleanupLogsDir, logFileName);
-            
-            await fs.promises.writeFile(logFilePath, JSON.stringify(batchEntry));
-        } catch (error) {
-            console.error('批量写入日志失败:', error);
-        }
+        console.log(`📝 批量清理操作完成，共 ${operations.length} 个批次`);
     }
     
     // 获取清理记录
@@ -439,7 +383,7 @@ class DatabaseCleaner {
     startScheduledCleanup() {
         console.log('⏰ 启动定时数据库清理任务...');
         
-        // 每天凌晨2点执行清理
+        // 每12小时执行清理
         setInterval(async () => {
             try {
                 await this.cleanupZombieUsers({ force: false }); // 自动调用，不强制清理
@@ -456,7 +400,7 @@ class DatabaseCleaner {
             } catch (error) {
                 console.error('定时清理任务失败:', error);
             }
-        }, 24 * 60 * 60 * 1000); // 24小时
+        }, 12 * 60 * 60 * 1000); // 12小时
         
         // 立即执行一次
         setTimeout(() => {

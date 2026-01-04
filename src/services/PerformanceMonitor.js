@@ -5,6 +5,12 @@ class PerformanceMonitor {
     constructor() {
         this.memoryUsageThreshold = 0.8; // 80%内存使用率阈值
         this.cpuUsageThreshold = 0.7; // 70% CPU使用率阈值
+        this.maxMetricsEntries = {
+            memory: 1000,        // 最多保留1000条内存记录
+            cpu: 1000,           // 最多保留1000条CPU记录
+            responseTimes: 5000, // 最多保留5000条响应时间记录
+            gc: 100              // 最多保留100条垃圾回收记录
+        };
         this.metrics = {
             memory: [],
             cpu: [],
@@ -52,6 +58,17 @@ class PerformanceMonitor {
         });
     }
     
+    // 限制指标数据大小，防止内存溢出
+    limitMetricsSize() {
+        for (const [metricType, entries] of Object.entries(this.metrics)) {
+            const maxEntries = this.maxMetricsEntries[metricType] || 1000;
+            if (entries.length > maxEntries) {
+                // 保留最新的entries
+                this.metrics[metricType] = entries.slice(entries.length - maxEntries);
+            }
+        }
+    }
+
     collectMetrics() {
         // 内存使用情况
         const totalMem = os.totalmem();
@@ -65,6 +82,9 @@ class PerformanceMonitor {
             total: totalMem,
             free: freeMem
         });
+        
+        // 限制内存指标数据大小
+        this.limitMetricsSize();
         
         // 基于内存使用率的分级垃圾回收和清理策略
         if (memoryUsage > this.memoryUsageThreshold) {
@@ -124,46 +144,21 @@ class PerformanceMonitor {
         this.clearModuleCache();
     }
     
+    // 设置缓存清理回调函数，避免循环依赖
+    setCacheCleanupCallbacks(callbacks) {
+        this.cacheCleanupCallbacks = callbacks;
+    }
+    
     clearMemoryCaches() {
         // 清理应用级别的缓存
         try {
-            // 在需要时动态导入app模块，避免循环依赖问题
-            let appModule;
-            try {
-                // 使用try-catch包装require，防止循环依赖导致的错误
-                appModule = require('../app');
-                // 注意：不保存到实例属性，避免持有未完全初始化的模块引用
-            } catch (requireError) {
-                console.debug('动态导入app模块失败（可能是循环依赖导致）:', requireError.message);
-                return;
-            }
-            
-            // 安全地检查rankCache属性是否存在且可用
-            // 使用更严格的检查方式，避免在模块未完全初始化时访问属性
-            if (appModule && typeof appModule === 'object' && 
-                appModule !== null && 
-                Object.prototype.hasOwnProperty.call(appModule, 'rankCache') && 
-                typeof appModule.rankCache === 'object' && 
-                appModule.rankCache !== null && 
-                typeof appModule.rankCache.clear === 'function') {
-                const cacheSizeBefore = appModule.rankCache.size;
-                appModule.rankCache.clear();
-                const cacheSizeAfter = appModule.rankCache.size;
-                console.log(`🧹 清理排行榜缓存: 移除 ${cacheSizeBefore - cacheSizeAfter} 个条目`);
-            }
-            
-            // 安全地检查cacheExpiry属性是否存在且可用
-            if (appModule && typeof appModule === 'object' && 
-                appModule !== null && 
-                Object.prototype.hasOwnProperty.call(appModule, 'cacheExpiry') && 
-                typeof appModule.cacheExpiry === 'object' && 
-                appModule.cacheExpiry !== null && 
-                typeof appModule.cacheExpiry.clear === 'function') {
-                appModule.cacheExpiry.clear();
-                console.log('🧹 清理缓存过期时间记录');
+            // 使用回调函数清理缓存，避免循环依赖
+            if (this.cacheCleanupCallbacks && typeof this.cacheCleanupCallbacks.clearRankCache === 'function') {
+                const clearedCount = this.cacheCleanupCallbacks.clearRankCache();
+                console.log(`🧹 清理排行榜缓存: 移除 ${clearedCount} 个条目`);
             }
         } catch (error) {
-            // 忽略循环依赖或其他导入错误
+            // 忽略清理错误
             console.debug('清理应用缓存失败:', error.message);
         }
         
@@ -206,6 +201,9 @@ class PerformanceMonitor {
             route,
             duration
         });
+        
+        // 限制响应时间数据大小
+        this.limitMetricsSize();
         
         // 记录慢查询（超过500ms）
         if (duration > 500) {

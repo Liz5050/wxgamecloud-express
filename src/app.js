@@ -35,6 +35,11 @@ var app = express();
 const performanceMonitor = new PerformanceMonitor();
 app.use(createPerformanceMiddleware(performanceMonitor));
 
+// 设置缓存清理回调，避免循环依赖
+performanceMonitor.setCacheCleanupCallbacks({
+    clearRankCache: clearRankCache
+});
+
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cors());
@@ -53,51 +58,78 @@ app.get("/api/performance", (req, res) => {
 
 // 清理缓存接口
 app.post("/api/clear-cache", (req, res) => {
+	const clearedCount = clearRankCache();
+	res.send({ code: 0, data: `缓存已清理，共移除${clearedCount}个条目` });
+});
+
+// 实现清理rankCache的函数，用于PerformanceMonitor回调
+function clearRankCache() {
+	const clearedCount = rankCache.size;
 	rankCache.clear();
 	cacheExpiry.clear();
-	console.log('🧹 清理排行榜缓存');
-	res.send({ code: 0, data: '缓存已清理' });
-});
+	cacheLastAccessed.clear();
+	console.log(`🧹 清理排行榜缓存: 移除 ${clearedCount} 个条目`);
+	return clearedCount;
+};
 
 //#region 优化后的排行榜数据管理 - 使用数据库查询替代内存存储
 // 使用数据库查询替代内存存储，大幅减少内存占用
 var rankCache = new Map();
 var cacheExpiry = new Map();
+var cacheLastAccessed = new Map(); // 跟踪缓存条目最后访问时间
 const CACHE_TTL = 15000; // 15秒缓存
+const MAX_CACHE_ENTRIES = 200; // 最大缓存条目数限制
 
 // 清空过期的缓存 - 安全的内存管理
 function cleanupExpiredCache() {
 	const now = Date.now();
 	let clearedCount = 0;
 	
+	// 清理过期缓存
 	for (const [key, expiry] of cacheExpiry.entries()) {
 		if (now > expiry) {
 			rankCache.delete(key);
 			cacheExpiry.delete(key);
+			cacheLastAccessed.delete(key);
 			clearedCount++;
 		}
 	}
 	
-	// 如果缓存条目过多，强制清理最旧的50%以防止内存泄漏
-	if (rankCache.size > 500) {
-		const keys = Array.from(rankCache.keys());
-		const keysToRemove = keys.slice(0, Math.floor(keys.length * 0.5));
+	// 如果缓存条目仍然超过限制，使用LRU策略清理最久未访问的条目
+	if (rankCache.size > MAX_CACHE_ENTRIES) {
+		// 将缓存条目按最后访问时间排序
+		const sortedKeys = Array.from(cacheLastAccessed.entries())
+			.sort(([, a], [, b]) => a - b)
+			.map(([key]) => key);
 		
+		// 计算需要清理的条目数
+		const keysToRemove = sortedKeys.slice(0, rankCache.size - MAX_CACHE_ENTRIES);
+		
+		// 执行清理
 		keysToRemove.forEach(key => {
 			rankCache.delete(key);
 			cacheExpiry.delete(key);
+			cacheLastAccessed.delete(key);
 		});
 		
-		console.log(`⚠️  缓存清理: 强制移除${keysToRemove.length}个旧缓存条目`);
+		console.log(`⚠️  缓存清理: 强制移除${keysToRemove.length}个最久未访问的缓存条目`);
+		clearedCount += keysToRemove.length;
 	}
 	
 	if (clearedCount > 0) {
-		console.log(`🧹 自动清理${clearedCount}个过期缓存条目`);
+		console.log(`🧹 自动清理${clearedCount}个缓存条目`);
 	}
 }
 
-// 每1分钟清理一次过期缓存（更频繁的清理）
-setInterval(cleanupExpiredCache, 60000);
+// 每30秒清理一次过期缓存（更频繁的清理）
+setInterval(cleanupExpiredCache, 30000);
+
+// 更新缓存时同时更新访问时间
+function updateCacheWithAccessTime(key, value) {
+	rankCache.set(key, value);
+	cacheExpiry.set(key, Date.now() + CACHE_TTL);
+	cacheLastAccessed.set(key, Date.now());
+}
 
 // 获取排行榜数据 - 使用数据库查询和缓存
 async function getRankList(game_type, sub_type = 0) {
@@ -106,6 +138,8 @@ async function getRankList(game_type, sub_type = 0) {
 	
 	// 检查缓存
 	if (rankCache.has(cacheKey) && cacheExpiry.get(cacheKey) > now) {
+		// 更新最后访问时间
+		cacheLastAccessed.set(cacheKey, now);
 		return rankCache.get(cacheKey);
 	}
 	
@@ -131,12 +165,15 @@ async function getRankList(game_type, sub_type = 0) {
 			where: whereCondition,
 			order: [[targetName, order]],
 			limit: 100,
-			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
+			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time'],
+			raw: true, // 直接返回原始数据对象，减少内存占用
+			// 移除不必要的Sequelize元数据
+			instanceMethods: false,
+			classMethods: false
 		});
 		
-		// 设置缓存
-		rankCache.set(cacheKey, result);
-		cacheExpiry.set(cacheKey, now + CACHE_TTL);
+		// 设置缓存，同时更新最后访问时间
+		updateCacheWithAccessTime(cacheKey, result);
 		
 		return result;
 	} catch (error) {
@@ -150,7 +187,8 @@ async function getUserRank(openid, game_type, sub_type = 0) {
 	try {
 		const result = await user_game_data.findOne({
 			where: { openid, game_type, sub_type },
-			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
+			attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time'],
+			raw: true
 		});
 		
 		if (!result) return null;
@@ -301,7 +339,8 @@ app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
 			const item = await user_game_data.findAll({
 				where: whereCondition,
 				limit: 100,
-				attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time']
+				attributes: ['openid', 'game_type', 'sub_type', 'score', 'play_time', 'nick_name', 'avatar_url', 'record_time'],
+				raw: true
 			});
 			
 			if (item && item.length > 0) {

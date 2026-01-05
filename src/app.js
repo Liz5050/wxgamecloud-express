@@ -827,7 +827,8 @@ async function bootstrap() {
 		console.warn('⚠️  数据库连接失败，但服务器仍将继续运行（部分功能可能不可用）');
 	}
 	
-	console.log('🌐 服务器启动完成，监听端口:', port);
+	console.log('🌐 服务器启动完成');
+
 	
 	// 添加清理状态查询接口
 	app.get("/api/db_cleanup_status", async (req, res) => {
@@ -896,18 +897,15 @@ async function bootstrap() {
 		}
 	});
 	
-	app.listen(port, () => {
-		console.log("启动成功", port);
-		console.log("内存优化版本已启用 - 使用数据库查询替代内存存储");
-		console.log("数据库自动清理系统已启动 - 每天凌晨2点执行");
-	});
+
 }
 
-// 导出Express应用实例和缓存对象
+// 导出Express应用实例、缓存对象和bootstrap函数
 module.exports = {
     app,
     rankCache,
-    cacheExpiry
+    cacheExpiry,
+    bootstrap
 };
 
 // 如果直接运行此文件，则启动服务器

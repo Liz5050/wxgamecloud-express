@@ -39,15 +39,12 @@ class PerformanceMonitor {
     
     // 定期执行的内存清理
     performRegularCleanup() {
-        console.log('📅 执行定期内存清理');
-        
         // 清理应用缓存
         this.clearMemoryCaches();
         
         // 执行垃圾回收（如果可用）
         if (global.gc) {
             global.gc();
-            console.log('🧹 执行定期垃圾回收');
         }
         
         // 记录清理后的内存状态

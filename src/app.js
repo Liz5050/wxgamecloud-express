@@ -35,11 +35,6 @@ var app = express();
 const performanceMonitor = new PerformanceMonitor();
 app.use(createPerformanceMiddleware(performanceMonitor));
 
-// 设置缓存清理回调，避免循环依赖
-performanceMonitor.setCacheCleanupCallbacks({
-    clearRankCache: clearRankCache
-});
-
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(cors());
@@ -56,11 +51,11 @@ app.get("/api/performance", (req, res) => {
 	res.send({ code: 0, data: report });
 });
 
-// 清理缓存接口
-app.post("/api/clear-cache", (req, res) => {
-	const clearedCount = clearRankCache();
-	res.send({ code: 0, data: `缓存已清理，共移除${clearedCount}个条目` });
-});
+//#region 优化后的排行榜数据管理 - 使用数据库查询替代内存存储
+// 使用数据库查询替代内存存储，大幅减少内存占用
+var rankCache = new Map();
+var cacheExpiry = new Map();
+var cacheLastAccessed = new Map(); // 跟踪缓存条目最后访问时间
 
 // 实现清理rankCache的函数，用于PerformanceMonitor回调
 function clearRankCache() {
@@ -68,15 +63,20 @@ function clearRankCache() {
 	rankCache.clear();
 	cacheExpiry.clear();
 	cacheLastAccessed.clear();
-	console.log(`🧹 清理排行榜缓存: 移除 ${clearedCount} 个条目`);
+	console.log(`清理排行榜缓存: 移除 ${clearedCount} 个条目`);
 	return clearedCount;
 };
 
-//#region 优化后的排行榜数据管理 - 使用数据库查询替代内存存储
-// 使用数据库查询替代内存存储，大幅减少内存占用
-var rankCache = new Map();
-var cacheExpiry = new Map();
-var cacheLastAccessed = new Map(); // 跟踪缓存条目最后访问时间
+// 设置缓存清理回调，避免循环依赖
+performanceMonitor.setCacheCleanupCallbacks({
+    clearRankCache: clearRankCache
+});
+
+// 清理缓存接口
+app.post("/api/clear-cache", (req, res) => {
+	const clearedCount = clearRankCache();
+	res.send({ code: 0, data: `缓存已清理，共移除${clearedCount}个条目` });
+});
 const CACHE_TTL = 15000; // 15秒缓存
 const MAX_CACHE_ENTRIES = 200; // 最大缓存条目数限制
 
@@ -112,12 +112,12 @@ function cleanupExpiredCache() {
 			cacheLastAccessed.delete(key);
 		});
 		
-		console.log(`⚠️  缓存清理: 强制移除${keysToRemove.length}个最久未访问的缓存条目`);
+		console.log(`缓存清理: 强制移除${keysToRemove.length}个最久未访问的缓存条目`);
 		clearedCount += keysToRemove.length;
 	}
 	
 	if (clearedCount > 0) {
-		console.log(`🧹 自动清理${clearedCount}个缓存条目`);
+		console.log(`自动清理${clearedCount}个缓存条目`);
 	}
 }
 
@@ -135,6 +135,8 @@ function updateCacheWithAccessTime(key, value) {
 async function getRankList(game_type, sub_type = 0) {
 	const cacheKey = `${game_type}_${sub_type}`;
 	const now = Date.now();
+	
+
 	
 	// 检查缓存
 	if (rankCache.has(cacheKey) && cacheExpiry.get(cacheKey) > now) {
@@ -172,12 +174,13 @@ async function getRankList(game_type, sub_type = 0) {
 			classMethods: false
 		});
 		
-		// 设置缓存，同时更新最后访问时间
-		updateCacheWithAccessTime(cacheKey, result);
+		// 设置缓存，同时更新最后访问时间 - 只缓存成功获取的数据
+        updateCacheWithAccessTime(cacheKey, result);
 		
 		return result;
 	} catch (error) {
 		console.error('获取排行榜数据失败:', error);
+		// 数据库查询失败时不缓存结果，让下次请求再次尝试
 		return [];
 	}
 }
@@ -417,11 +420,7 @@ app.post("/api/user_game_data", async (req, res) => {
 		filterEmojiName = nickName.replace(regex, "");
 	}
 	
-	console.log(
-		"保存用户游戏数据name:" + nickName + "newName:" + filterEmojiName,
-		game_data,
-		user_info
-	);
+
 	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
@@ -431,7 +430,7 @@ app.post("/api/user_game_data", async (req, res) => {
 		try {
 			if (game_data.game_type == 1001) {
 				if (checkIllegalUser(openid)) {
-					console.log("违规用户:" + nickName, game_data, user_info);
+					console.log("违规用户:", openid);
 					res.send({ code: -1, openid: openid });
 					return;
 				}
@@ -779,10 +778,6 @@ app.get("/api/game_grid_save", async (req, res) => {
 //#region 测试
 app.get("/api/get_rank_data", async (req, res) => {
 	try {
-		// 清空缓存，重新获取最新数据
-		rankCache.clear();
-		cacheExpiry.clear();
-		
 		// 获取所有游戏类型的排行榜
 		const gameTypes = [1001, 1002];
 		const results = {};
@@ -889,7 +884,7 @@ async function bootstrap() {
 	app.listen(port, () => {
 		console.log("启动成功", port);
 		console.log("内存优化版本已启用 - 使用数据库查询替代内存存储");
-		console.log("✅ 数据库自动清理系统已启动 - 每天凌晨2点执行");
+		console.log("数据库自动清理系统已启动 - 每天凌晨2点执行");
 	});
 }
 

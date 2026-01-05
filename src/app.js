@@ -799,20 +799,35 @@ app.get("/api/get_rank_data", async (req, res) => {
 
 const port = process.env.PORT || 3000;
 async function bootstrap() {
-	await initUserDB();
-	await initUser_data();
-	await initShare_rewards();
-	await initGameGridSave();
+	console.log('🚀 开始启动服务器...');
 	
-	// 初始化数据库清理系统
+	// 先初始化数据库清理系统，确保能看到启动日志
+	console.log('🔄 初始化数据库清理系统...');
 	const dbCleaner = new DatabaseCleaner(sequelize, {
 		user_game_data,
 		user_data,
 		share_rewards
 	});
 	
-	// 启动定时清理任务（每天凌晨2点执行）
+	// 启动定时清理任务
+	console.log('⏰ 准备启动定时数据库清理任务...');
 	dbCleaner.startScheduledCleanup();
+	console.log('✅ 数据库清理系统启动完成');
+	
+	// 初始化数据库表
+	try {
+		console.log('📦 开始初始化数据库表...');
+		await initUserDB();
+		await initUser_data();
+		await initShare_rewards();
+		await initGameGridSave();
+		console.log('✅ 数据库表初始化完成');
+	} catch (error) {
+		console.error('❌ 数据库初始化失败:', error);
+		console.warn('⚠️  数据库连接失败，但服务器仍将继续运行（部分功能可能不可用）');
+	}
+	
+	console.log('🌐 服务器启动完成，监听端口:', port);
 	
 	// 添加清理状态查询接口
 	app.get("/api/db_cleanup_status", async (req, res) => {

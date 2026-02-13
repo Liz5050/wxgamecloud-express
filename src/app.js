@@ -291,6 +291,9 @@ function checkRankUpdate(intervalTime) {
 
 //#region 排行榜数据获取 - 优化为数据库查询
 app.get("/api/all_user_game_data/:game_type?/:sub_type?", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	const game_type = parseInt(req.params.game_type);
 	const sub_type = parseInt(req.params.sub_type || 0);
 	
@@ -321,6 +324,9 @@ app.get("/api/all_user_game_data/:game_type?/:sub_type?", async (req, res) => {
 //#endregion
 
 app.get("/api/user_game_data/:game_type?/:sub_type?", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	const game_type = parseInt(req.params.game_type);
 	const sub_type = parseInt(req.params.sub_type || 0);
 	
@@ -409,6 +415,9 @@ function checkIllegalUser(openid) {
 
 //#region 保存游戏数据 - 优化数据库操作
 app.post("/api/user_game_data", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	const { game_data, user_info } = req.body;
 	let nickName = "神秘玩家";
 	let avatarUrl = "";
@@ -516,6 +525,9 @@ app.post("/api/user_game_data", async (req, res) => {
 //#endregion
 
 app.get("/api/user_data", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		try {
@@ -539,6 +551,9 @@ app.get("/api/user_data", async (req, res) => {
 });
 
 app.post("/api/add_score_coin", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { score } = req.body;
@@ -554,6 +569,9 @@ app.post("/api/add_score_coin", async (req, res) => {
 
 //#region 兑换皮肤
 app.post("/api/buy_skin", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { skin_id } = req.body;
@@ -612,6 +630,9 @@ app.post("/api/buy_skin", async (req, res) => {
 
 //#region 使用皮肤
 app.post("/api/use_grid_skin", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const { skin_id } = req.body;
 		const openid = req.headers["x-wx-openid"];
@@ -656,6 +677,9 @@ function checkNextDay(time) {
 
 //#region分享奖励
 app.get("/api/share_score_reward", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		try {
@@ -680,6 +704,9 @@ app.get("/api/share_score_reward", async (req, res) => {
 });
 
 app.post("/api/share_score_reward", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const nowTime = Math.floor(Date.now() / 1000);
@@ -719,6 +746,9 @@ app.post("/api/share_score_reward", async (req, res) => {
 
 //#region 游戏进度保存
 app.post("/api/game_grid_save", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		const { jsonStr } = req.body;
@@ -748,6 +778,9 @@ app.post("/api/game_grid_save", async (req, res) => {
 });
 
 app.get("/api/game_grid_save", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	if (req.headers["x-wx-source"]) {
 		const openid = req.headers["x-wx-openid"];
 		try {
@@ -777,6 +810,9 @@ app.get("/api/game_grid_save", async (req, res) => {
 
 //#region 测试
 app.get("/api/get_rank_data", async (req, res) => {
+	// 确保数据库已初始化（懒加载）
+	await ensureDbInitialized();
+	
 	try {
 		// 获取所有游戏类型的排行榜
 		const gameTypes = [1001, 1002];
@@ -798,6 +834,48 @@ app.get("/api/get_rank_data", async (req, res) => {
 //#endregion
 
 const port = process.env.PORT || 3000;
+
+// 数据库初始化状态管理 - 使用懒加载方式，避免启动时立即建立连接
+let dbInitialized = false;
+let dbInitializing = false;
+let dbInitError = null;
+
+// 确保数据库已初始化的函数（懒加载）
+async function ensureDbInitialized() {
+	// 如果已经初始化，直接返回
+	if (dbInitialized) {
+		return true;
+	}
+	
+	// 如果正在初始化，等待完成
+	if (dbInitializing) {
+		while (dbInitializing) {
+			await new Promise(resolve => setTimeout(resolve, 100));
+		}
+		return !dbInitError;
+	}
+	
+	// 开始初始化
+	dbInitializing = true;
+	try {
+		console.log('📦 开始懒加载初始化数据库表...');
+		await initUserDB();
+		await initUser_data();
+		await initShare_rewards();
+		await initGameGridSave();
+		dbInitialized = true;
+		console.log('✅ 数据库表初始化完成');
+		return true;
+	} catch (error) {
+		dbInitError = error;
+		console.error('❌ 数据库初始化失败:', error);
+		console.warn('⚠️  数据库连接失败，但服务器仍将继续运行（部分功能可能不可用）');
+		return false;
+	} finally {
+		dbInitializing = false;
+	}
+}
+
 async function bootstrap() {
 	console.log('🚀 开始启动服务器...');
 	
@@ -814,24 +892,19 @@ async function bootstrap() {
 	dbCleaner.startScheduledCleanup();
 	console.log('✅ 数据库清理系统启动完成');
 	
-	// 初始化数据库表
-	try {
-		console.log('📦 开始初始化数据库表...');
-		await initUserDB();
-		await initUser_data();
-		await initShare_rewards();
-		await initGameGridSave();
-		console.log('✅ 数据库表初始化完成');
-	} catch (error) {
-		console.error('❌ 数据库初始化失败:', error);
-		console.warn('⚠️  数据库连接失败，但服务器仍将继续运行（部分功能可能不可用）');
-	}
+	// 优化：不在启动时立即初始化数据库表，改为懒加载
+	// 这样可以在没有请求时避免保持数据库连接，降低MySQL算力成本
+	// 数据库表将在第一次API请求时自动初始化
+	console.log('💡 数据库表将采用懒加载方式初始化（首次请求时自动初始化）');
 	
 	console.log('🌐 服务器启动完成');
 
 	
 	// 添加清理状态查询接口
 	app.get("/api/db_cleanup_status", async (req, res) => {
+		// 确保数据库已初始化（懒加载）
+		await ensureDbInitialized();
+		
 		try {
 			const stats = dbCleaner.getStats();
 			const tableSizes = await dbCleaner.checkTableSizes();
@@ -873,6 +946,9 @@ async function bootstrap() {
 	
 	// 手动触发清理接口（需要权限验证）
 	app.post("/api/manual_cleanup", async (req, res) => {
+		// 确保数据库已初始化（懒加载）
+		await ensureDbInitialized();
+		
 		try {
 			// 简单的权限验证（实际生产环境应该更严格）
 		if (req.headers['x-admin-token'] !== process.env.ADMIN_TOKEN) {

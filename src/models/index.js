@@ -26,21 +26,69 @@ if (MYSQL_ADDRESS && MYSQL_ADDRESS.includes(':')) {
   host = MYSQL_ADDRESS;
 }
 
-// 创建数据库连接，添加连接池配置优化性能
+// 创建数据库连接，优化连接池配置以降低MySQL算力成本
+// 关键优化：降低最大连接数、缩短空闲时间、更快释放连接
 const sequelize = new Sequelize(MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD, {
   host,
   port,
   dialect: "mysql",
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   pool: {
-    max: 10,
-    min: 0,
-    acquire: 30000,
-    idle: 10000
+    max: 5,              // 降低最大连接数（从10降到5），减少资源占用
+    min: 0,              // 保持为0，允许连接池完全为空，避免保持最小连接
+    acquire: 30000,      // 获取连接超时时间(ms)
+    idle: 5000,          // 缩短空闲时间（从10秒降到5秒），更快释放空闲连接
+    evict: 1000,         // 驱逐检查间隔(ms)，定期清理无效连接
+    handleDisconnects: true, // 自动处理断开连接
+    // 连接验证，确保连接有效
+    validate: (connection) => {
+      return connection && connection._isValid;
+    }
   },
   retry: {
     max: 3
+  },
+  // 添加连接选项，减少连接保持时间
+  dialectOptions: {
+    connectTimeout: 10000, // 连接超时时间
+    // 启用自动重连，但不会保持连接
+    reconnect: true
   }
+});
+
+// 添加连接池监控，帮助诊断连接使用情况
+if (process.env.NODE_ENV === 'development') {
+  sequelize.connectionManager.pool.on('connection', (connection) => {
+    console.log('🔌 数据库连接已建立');
+  });
+
+  sequelize.connectionManager.pool.on('release', (connection) => {
+    console.log('🔌 数据库连接已释放');
+  });
+}
+
+// 定期检查并记录连接池状态（生产环境也记录，但频率降低）
+const connectionMonitorInterval = setInterval(() => {
+  try {
+    const pool = sequelize.connectionManager.pool;
+    const idleConnections = pool._availableObjects ? pool._availableObjects.length : 0;
+    const activeConnections = pool._allObjects ? pool._allObjects.length - idleConnections : 0;
+    
+    if (idleConnections > 0 || activeConnections > 0) {
+      console.log(`📊 数据库连接池状态: 活跃=${activeConnections}, 空闲=${idleConnections}`);
+    }
+  } catch (error) {
+    // 忽略监控错误，不影响主流程
+  }
+}, process.env.NODE_ENV === 'development' ? 30000 : 300000); // 开发环境30秒，生产环境5分钟
+
+// 优雅关闭：进程退出时清理连接池监控
+process.on('SIGTERM', () => {
+  clearInterval(connectionMonitorInterval);
+});
+
+process.on('SIGINT', () => {
+  clearInterval(connectionMonitorInterval);
 });
 
 // // 数据库初始化方法

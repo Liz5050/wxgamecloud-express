@@ -469,37 +469,69 @@ class DatabaseCleaner {
         return next;
     }
     
-    // 启动定时清理任务
+    // 启动定时清理任务 - 优化为每天执行一次，减少数据库连接使用
     startScheduledCleanup() {
-        console.log('⏰ 启动定时数据库清理任务...');
+        console.log('⏰ 启动定时数据库清理任务（每天凌晨2点执行）...');
         
-        // 每12小时执行清理
-        setInterval(async () => {
+        // 计算下次执行时间（每天凌晨2点）
+        const calculateNextRun = () => {
+            const now = new Date();
+            const nextRun = new Date(now);
+            nextRun.setHours(2, 0, 0, 0);
+            nextRun.setMinutes(0);
+            nextRun.setSeconds(0);
+            nextRun.setMilliseconds(0);
+            
+            // 如果当前时间已过今天的2点，则设置为明天的2点
+            if (nextRun <= now) {
+                nextRun.setDate(nextRun.getDate() + 1);
+            }
+            
+            return nextRun;
+        };
+        
+        // 执行清理任务的函数
+        const executeCleanup = async () => {
             try {
+                console.log('🧹 开始执行定时数据库清理任务...');
                 await this.cleanupZombieUsers({ force: false }); // 自动调用，不强制清理
                 await this.cleanupUserDataTable(); // 控制user_game_data表记录数量
-                await this.archiveOldData();
+                // 移除 archiveOldData() 调用，减少数据库操作频率
+                // await this.archiveOldData();
                 
                 // 记录性能指标
                 const memoryUsage = process.memoryUsage();
-                console.log('📊 内存使用情况:', {
+                console.log('📊 清理后内存使用情况:', {
                     heapUsed: (memoryUsage.heapUsed / 1024 / 1024).toFixed(2) + 'MB',
                     heapTotal: (memoryUsage.heapTotal / 1024 / 1024).toFixed(2) + 'MB',
                     rss: (memoryUsage.rss / 1024 / 1024).toFixed(2) + 'MB'
                 });
                 
+                console.log('✅ 定时数据库清理任务完成');
             } catch (error) {
-                console.error('定时清理任务失败:', error);
+                console.error('❌ 定时清理任务失败:', error);
             }
-        }, 12 * 60 * 60 * 1000); // 12小时
+        };
         
-        // 立即执行一次完整清理
-        setTimeout(() => {
-            Promise.all([
-                this.cleanupZombieUsers({ force: false }),
-                this.cleanupUserDataTable()
-            ]).catch(console.error);
-        }, 5000);
+        // 调度函数：计算下次执行时间并设置定时器
+        const scheduleNextRun = () => {
+            const nextRun = calculateNextRun();
+            const msUntilNextRun = nextRun.getTime() - Date.now();
+            
+            console.log(`⏰ 下次清理任务执行时间: ${nextRun.toLocaleString('zh-CN')} (${Math.round(msUntilNextRun / 1000 / 60)}分钟后)`);
+            
+            setTimeout(async () => {
+                await executeCleanup();
+                // 递归调用，实现每天执行
+                scheduleNextRun();
+            }, msUntilNextRun);
+        };
+        
+        // 启动调度
+        scheduleNextRun();
+        
+        // 移除立即执行的清理任务，避免启动时立即建立数据库连接
+        // 这样可以减少数据库连接的使用，降低MySQL算力成本
     }
 }
 

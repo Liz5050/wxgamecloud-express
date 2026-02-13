@@ -50,9 +50,9 @@ const sequelize = new Sequelize(MYSQL_DATABASE, MYSQL_USERNAME, MYSQL_PASSWORD, 
   },
   // 添加连接选项，减少连接保持时间
   dialectOptions: {
-    connectTimeout: 10000, // 连接超时时间
-    // 启用自动重连，但不会保持连接
-    reconnect: true
+    connectTimeout: 10000 // 连接超时时间(ms)
+    // 注意：reconnect 不是 MySQL2 的有效配置选项
+    // Sequelize 已经通过连接池和 retry 配置自动处理重连
   }
 });
 
